@@ -1,0 +1,45 @@
+version: "3.8"
+services:
+  daemon:
+    image: kingshot-daemon
+    container_name: kingshot-daemon
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/chromium:/usr/bin/chromium:ro
+      - /usr/bin/chromedriver:/usr/bin/chromedriver:ro
+      - /usr/lib/chromium:/usr/lib/chromium:ro
+      - /etc/chromium.d:/etc/chromium.d:ro
+      - /usr/lib/aarch64-linux-gnu:/usr/lib/aarch64-linux-gnu:ro
+    environment:
+      - KINGSHOT_API=${KINGSHOT_API:-https://kingshot.net/api}
+      - SHEETS_WEB_APP_URL=${SHEETS_WEB_APP_URL}
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - CHECK_INTERVAL_MIN=${CHECK_INTERVAL_MIN:-5}
+      - HEADLESS=true
+    shm_size: '256mb'
+
+  web:
+    build: ./web
+    container_name: kingshot-web
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /home/selman/kingshot:/home/selman/kingshot
+    environment:
+      - DB_PATH=/app/data/kingshot.db
+      - LOG_PATH=/app/data/kingshot_daemon.log
+      - CONFIG_PATH=/app/data/web_config.json
+      - JWT_SECRET=${JWT_SECRET:-change-this-secret}
+      - ADMIN_USER=${ADMIN_USER:-admin}
+      - ADMIN_PASS=${ADMIN_PASS:-kingshot123}
+      - COMPOSE_DIR=/home/selman/kingshot
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+    depends_on:
+      - daemon

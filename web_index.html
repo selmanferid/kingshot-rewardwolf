@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>KingShot Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg:       #0a0c10;
+    --surface:  #111318;
+    --border:   #1e222c;
+    --accent:   #f5a623;
+    --accent2:  #e8441a;
+    --green:    #22c55e;
+    --yellow:   #eab308;
+    --red:      #ef4444;
+    --blue:     #3b82f6;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --font:     'Rajdhani', sans-serif;
+    --mono:     'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    min-height: 100vh;
+  }
+
+  /* ── Login ── */
+  #login-screen {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh;
+    background: radial-gradient(ellipse at 50% 0%, #1a0f0030 0%, var(--bg) 70%);
+  }
+  .login-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--accent);
+    padding: 48px 40px;
+    width: 380px;
+    position: relative;
+  }
+  .login-box::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, #f5a62308 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .login-logo {
+    font-size: 28px; font-weight: 700; letter-spacing: 3px;
+    color: var(--accent); text-align: center; margin-bottom: 8px;
+  }
+  .login-sub {
+    text-align: center; color: var(--muted); font-size: 13px;
+    letter-spacing: 1px; margin-bottom: 36px;
+  }
+  .form-group { margin-bottom: 16px; }
+  .form-group label {
+    display: block; font-size: 11px; letter-spacing: 2px;
+    color: var(--muted); margin-bottom: 6px; text-transform: uppercase;
+  }
+  .form-group input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); padding: 10px 14px; font-family: var(--mono);
+    font-size: 13px; outline: none; transition: border-color 0.2s;
+  }
+  .form-group input:focus { border-color: var(--accent); }
+  .btn {
+    width: 100%; background: var(--accent); color: #000;
+    border: none; padding: 12px; font-family: var(--font);
+    font-size: 15px; font-weight: 700; letter-spacing: 2px;
+    cursor: pointer; text-transform: uppercase; transition: opacity 0.2s;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn-sm {
+    width: auto; padding: 5px 14px; font-size: 12px;
+    letter-spacing: 1px;
+  }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-ghost {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text); font-size: 12px; letter-spacing: 1px;
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .error-msg { color: var(--red); font-size: 13px; text-align: center; margin-top: 12px; }
+
+  /* ── Layout ── */
+  #app { display: none; }
+  .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0; width: 220px;
+    background: var(--surface); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; z-index: 100;
+  }
+  .sidebar-logo {
+    padding: 20px 24px; font-size: 20px; font-weight: 700;
+    letter-spacing: 3px; color: var(--accent);
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo span { color: var(--muted); font-size: 11px; display: block; letter-spacing: 1px; }
+  .nav { flex: 1; padding: 16px 0; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 24px; cursor: pointer; color: var(--muted);
+    font-size: 14px; font-weight: 500; letter-spacing: 1px;
+    text-transform: uppercase; transition: all 0.15s; border-left: 2px solid transparent;
+  }
+  .nav-item:hover { color: var(--text); background: #ffffff05; }
+  .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: #f5a62308; }
+  .nav-icon { width: 18px; text-align: center; font-size: 16px; }
+  .sidebar-footer {
+    padding: 16px 24px; border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--muted);
+  }
+  .logout-btn {
+    display: block; width: 100%; background: none; border: 1px solid var(--border);
+    color: var(--muted); padding: 8px; cursor: pointer; font-family: var(--font);
+    font-size: 12px; letter-spacing: 1px; text-transform: uppercase;
+    transition: all 0.15s; margin-top: 8px;
+  }
+  .logout-btn:hover { border-color: var(--red); color: var(--red); }
+
+  .main {
+    margin-left: 220px; padding: 28px 32px; min-height: 100vh;
+  }
+  .page { display: none; }
+  .page.active { display: block; }
+  .page-title {
+    font-size: 24px; font-weight: 700; letter-spacing: 2px;
+    margin-bottom: 24px; color: var(--text);
+    border-bottom: 1px solid var(--border); padding-bottom: 16px;
+  }
+  .page-title span { color: var(--accent); }
+
+  /* ── Cards ── */
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 20px 24px;
+  }
+  .card-label {
+    font-size: 11px; letter-spacing: 2px; color: var(--muted);
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+  .card-value { font-size: 32px; font-weight: 700; line-height: 1; }
+  .card-value.accent { color: var(--accent); }
+  .card-value.green { color: var(--green); }
+  .card-value.yellow { color: var(--yellow); }
+  .card-value.red { color: var(--red); }
+  .card-value.blue { color: var(--blue); }
+  .card-sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  /* ── Table ── */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); overflow: hidden; }
+  .table-header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .table-title { font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    padding: 10px 16px; text-align: left; font-size: 11px;
+    letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase;
+    border-bottom: 1px solid var(--border); font-weight: 500;
+  }
+  td {
+    padding: 10px 16px; border-bottom: 1px solid #ffffff08;
+    font-size: 14px; vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #ffffff04; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-block; padding: 2px 10px; font-size: 11px;
+    letter-spacing: 1px; font-weight: 600; text-transform: uppercase;
+    font-family: var(--mono);
+  }
+  .badge-green { background: #22c55e18; color: var(--green); border: 1px solid #22c55e30; }
+  .badge-yellow { background: #eab30818; color: var(--yellow); border: 1px solid #eab30830; }
+  .badge-red { background: #ef444418; color: var(--red); border: 1px solid #ef444430; }
+  .badge-blue { background: #3b82f618; color: var(--blue); border: 1px solid #3b82f630; }
+  .badge-gray { background: #ffffff08; color: var(--muted); border: 1px solid var(--border); }
+  .badge-orange { background: #f5a62318; color: var(--accent); border: 1px solid #f5a62330; }
+
+  /* ── Health bars ── */
+  .health-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+  .health-card {
+    background: var(--surface); border: 1px solid var(--border); padding: 16px 20px;
+  }
+  .health-label { font-size: 11px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 10px; }
+  .health-value { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+  .progress-bar { height: 3px; background: var(--border); position: relative; }
+  .progress-fill { height: 100%; transition: width 0.5s; }
+  .progress-fill.green { background: var(--green); }
+  .progress-fill.yellow { background: var(--yellow); }
+  .progress-fill.red { background: var(--red); }
+
+  /* ── Logs ── */
+  .log-container {
+    background: #06080c; border: 1px solid var(--border);
+    font-family: var(--mono); font-size: 12px; line-height: 1.6;
+    height: 520px; overflow-y: auto; padding: 16px;
+  }
+  .log-line { white-space: pre-wrap; word-break: break-all; }
+  .log-INFO { color: #94a3b8; }
+  .log-WARNING { color: var(--yellow); }
+  .log-ERROR { color: var(--red); }
+  .log-SUCCESS { color: var(--green); }
+  .log-controls { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; }
+  .log-lines-select {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 6px 12px; font-family: var(--mono);
+    font-size: 12px; outline: none;
+  }
+  .live-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* ── Settings ── */
+  .settings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .setting-card { background: var(--surface); border: 1px solid var(--border); padding: 20px 24px; }
+  .setting-label { font-size: 11px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+  .setting-input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); padding: 8px 12px; font-family: var(--mono);
+    font-size: 14px; outline: none; transition: border-color 0.2s;
+  }
+  .setting-input:focus { border-color: var(--accent); }
+  .setting-desc { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .save-btn-wrap { margin-top: 20px; }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: #000000bb;
+    z-index: 999; align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-top: 2px solid var(--accent); padding: 28px 32px;
+    width: 480px; max-height: 80vh; overflow-y: auto;
+  }
+  .modal-title { font-size: 18px; font-weight: 700; letter-spacing: 1px; margin-bottom: 20px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+
+  /* ── Search ── */
+  .search-input {
+    background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); padding: 7px 14px; font-family: var(--mono);
+    font-size: 13px; outline: none; width: 220px;
+  }
+  .search-input:focus { border-color: var(--accent); }
+
+  /* ── Code detail ── */
+  .progress-row { display: flex; gap: 16px; align-items: center; }
+  .progress-segment { flex: 1; }
+  .progress-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; letter-spacing: 1px; }
+  .progress-multi { height: 6px; background: var(--border); display: flex; overflow: hidden; }
+
+  /* misc */
+  .flex { display: flex; }
+  .gap-2 { gap: 8px; }
+  .gap-3 { gap: 12px; }
+  .items-center { align-items: center; }
+  .justify-between { justify-content: space-between; }
+  .mt-2 { margin-top: 8px; }
+  .mt-4 { margin-top: 16px; }
+  .text-muted { color: var(--muted); }
+  .text-sm { font-size: 13px; }
+  .vip-star { color: var(--accent); font-size: 13px; }
+
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 3px solid var(--green); padding: 12px 20px;
+    font-size: 13px; z-index: 9999; animation: slideIn 0.3s ease;
+    display: none;
+  }
+  .toast.show { display: block; }
+  @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  .refresh-btn {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    padding: 5px 12px; cursor: pointer; font-family: var(--font);
+    font-size: 12px; letter-spacing: 1px; transition: all 0.15s;
+  }
+  .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  @media (max-width: 1100px) {
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .health-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">KINGSHOT</div>
+    <div class="login-sub">DASHBOARD · COMMAND CENTER</div>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="login-user" placeholder="admin" autocomplete="username"/>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <button class="btn" onclick="doLogin()">ENTER</button>
+    <div id="login-error" class="error-msg"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      KINGSHOT
+      <span>COMMAND CENTER</span>
+    </div>
+    <nav class="nav">
+      <div class="nav-item active" onclick="showPage('dashboard')">
+        <span class="nav-icon">⬡</span> Dashboard
+      </div>
+      <div class="nav-item" onclick="showPage('players')">
+        <span class="nav-icon">◈</span> Players
+      </div>
+      <div class="nav-item" onclick="showPage('codes')">
+        <span class="nav-icon">◆</span> Codes
+      </div>
+      <div class="nav-item" onclick="showPage('logs')">
+        <span class="nav-icon">▤</span> Logs
+      </div>
+      <div class="nav-item" onclick="showPage('settings')">
+        <span class="nav-icon">⚙</span> Settings
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div id="sidebar-time" style="font-family:var(--mono);font-size:11px;margin-bottom:4px;"></div>
+      <button class="logout-btn" onclick="logout()">↩ LOGOUT</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-title">DASH<span>BOARD</span></div>
+
+      <div class="grid-4" id="stat-cards">
+        <div class="card"><div class="card-label">Active Players</div><div class="card-value accent" id="stat-players">—</div></div>
+        <div class="card"><div class="card-label">VIP Players</div><div class="card-value yellow" id="stat-vip">—</div></div>
+        <div class="card"><div class="card-label">Successful</div><div class="card-value green" id="stat-success">—</div></div>
+        <div class="card"><div class="card-label">Failed</div><div class="card-value red" id="stat-failed">—</div></div>
+      </div>
+
+      <div class="health-grid">
+        <div class="health-card">
+          <div class="health-label">CPU Load</div>
+          <div class="health-value" id="h-cpu">—</div>
+          <div class="progress-bar"><div class="progress-fill" id="h-cpu-bar" style="width:0%"></div></div>
+        </div>
+        <div class="health-card">
+          <div class="health-label">RAM Usage</div>
+          <div class="health-value" id="h-ram">—</div>
+          <div class="progress-bar"><div class="progress-fill" id="h-ram-bar" style="width:0%"></div></div>
+        </div>
+        <div class="health-card">
+          <div class="health-label">Temperature</div>
+          <div class="health-value" id="h-temp">—</div>
+          <div class="progress-bar"><div class="progress-fill" id="h-temp-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <span class="table-title">Active Codes</span>
+          <button class="refresh-btn" onclick="loadDashboard()">↻ Refresh</button>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Code</th><th>Status</th><th>Created</th><th>Expires</th>
+            <th>Success</th><th>Already Used</th><th>Failed</th><th>Progress</th>
+          </tr></thead>
+          <tbody id="codes-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PLAYERS -->
+    <div class="page" id="page-players">
+      <div class="page-title">PLA<span>YERS</span></div>
+      <div class="flex justify-between items-center" style="margin-bottom:16px;">
+        <div class="flex gap-2">
+          <input class="search-input" id="player-search" placeholder="Search name or ID..." oninput="filterPlayers()"/>
+          <select id="player-filter" class="log-lines-select" onchange="filterPlayers()">
+            <option value="all">All</option>
+            <option value="active">Active</option>
+            <option value="vip">VIP</option>
+            <option value="removed">Removed</option>
+          </select>
+        </div>
+        <button class="btn btn-sm" onclick="openAddPlayer()">+ ADD PLAYER</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Player ID</th><th>Name</th><th>VIP</th><th>Since</th><th>Status</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="players-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CODES -->
+    <div class="page" id="page-codes">
+      <div class="page-title">CO<span>DES</span></div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <span class="table-title">All Codes</span>
+          <button class="refresh-btn" onclick="loadCodes()">↻ Refresh</button>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Code</th><th>Status</th><th>Created</th><th>Expires</th>
+            <th>✅</th><th>⚠️</th><th>❌</th><th>Detail</th>
+          </tr></thead>
+          <tbody id="codes-detail-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- LOGS -->
+    <div class="page" id="page-logs">
+      <div class="page-title">LO<span>GS</span></div>
+      <div class="log-controls">
+        <div class="live-dot" id="live-dot"></div>
+        <span style="font-size:12px;color:var(--muted);letter-spacing:1px;">LIVE</span>
+        <select class="log-lines-select" id="log-lines">
+          <option value="50">50 lines</option>
+          <option value="100" selected>100 lines</option>
+          <option value="200">200 lines</option>
+          <option value="500">500 lines</option>
+        </select>
+        <button class="refresh-btn" onclick="loadLogs()">↻ Refresh</button>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;">
+          <input type="checkbox" id="auto-scroll" checked/> Auto-scroll
+        </label>
+      </div>
+      <div class="log-container" id="log-output"></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div class="page-title">SET<span>TINGS</span></div>
+      <div class="settings-grid" id="settings-grid"></div>
+      <div class="save-btn-wrap">
+        <button class="btn" style="width:auto;padding:10px 40px;" onclick="saveSettings()">SAVE SETTINGS</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Player Modal -->
+<div class="modal-overlay" id="modal-add-player">
+  <div class="modal">
+    <div class="modal-title">Add Player</div>
+    <div class="form-group">
+      <label>Player ID</label>
+      <input type="text" id="new-player-id" class="setting-input" placeholder="e.g. 12345678"/>
+    </div>
+    <div class="form-group mt-2">
+      <label>Username</label>
+      <input type="text" id="new-player-name" class="setting-input" placeholder="e.g. Selman"/>
+    </div>
+    <div class="form-group mt-2" style="display:flex;align-items:center;gap:10px;">
+      <input type="checkbox" id="new-player-vip"/>
+      <label for="new-player-vip" style="color:var(--accent);font-size:13px;letter-spacing:1px;">VIP Player ⭐</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-add-player')">Cancel</button>
+      <button class="btn btn-sm" onclick="submitAddPlayer()">ADD</button>
+    </div>
+  </div>
+</div>
+
+<!-- Code Players Modal -->
+<div class="modal-overlay" id="modal-code-players">
+  <div class="modal" style="width:640px;">
+    <div class="modal-title" id="modal-code-title">Code Players</div>
+    <div id="modal-code-body" style="max-height:60vh;overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-code-players')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const API = window.location.origin + '/api';
+let token = localStorage.getItem('ks_token');
+let allPlayers = [];
+let logInterval = null;
+let settings = {};
+
+// ── Auth ──
+async function doLogin() {
+  const user = document.getElementById('login-user').value;
+  const pass = document.getElementById('login-pass').value;
+  const err  = document.getElementById('login-error');
+  err.textContent = '';
+  try {
+    const fd = new FormData();
+    fd.append('username', user);
+    fd.append('password', pass);
+    const r = await fetch(`${API}/auth/login`, { method: 'POST', body: fd });
+    if (!r.ok) { err.textContent = 'Invalid username or password'; return; }
+    const d = await r.json();
+    token = d.access_token;
+    localStorage.setItem('ks_token', token);
+    enterApp();
+  } catch(e) {
+    err.textContent = 'Connection error';
+  }
+}
+
+function logout() {
+  token = null;
+  localStorage.removeItem('ks_token');
+  clearInterval(logInterval);
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+async function apiFetch(path, opts={}) {
+  const r = await fetch(`${API}${path}`, {
+    ...opts,
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', ...opts.headers }
+  });
+  if (r.status === 401) { logout(); throw new Error('Unauthorized'); }
+  return r.json();
+}
+
+// ── Init ──
+function enterApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadDashboard();
+  updateClock();
+  setInterval(updateClock, 1000);
+  startLogPoller();
+}
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById('sidebar-time').textContent = now.toUTCString().slice(5,25) + ' UTC';
+}
+
+if (token) {
+  enterApp();
+} else {
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+// ── Navigation ──
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`page-${name}`).classList.add('active');
+  const items = document.querySelectorAll('.nav-item');
+  const names = ['dashboard','players','codes','logs','settings'];
+  items[names.indexOf(name)]?.classList.add('active');
+
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'players') loadPlayers();
+  if (name === 'codes') loadCodes();
+  if (name === 'settings') loadSettings();
+}
+
+// ── Dashboard ──
+async function loadDashboard() {
+  const d = await apiFetch('/dashboard');
+  document.getElementById('stat-players').textContent = d.players.total;
+  document.getElementById('stat-vip').textContent = d.players.vip;
+  document.getElementById('stat-success').textContent = d.stats.success;
+  document.getElementById('stat-failed').textContent = d.stats.failed;
+
+  setHealth('cpu',  d.health.cpu,  '%', 80);
+  setHealth('ram',  d.health.ram,  '%', 85);
+  setHealth('temp', d.health.temp, '°C', 75);
+
+  const tbody = document.getElementById('codes-table-body');
+  tbody.innerHTML = '';
+  d.codes.forEach(c => {
+    const total = c.success + c.already_used + c.failed || 1;
+    const pct = Math.round((c.success + c.already_used) / total * 100);
+    tbody.innerHTML += `
+      <tr>
+        <td class="mono">${c.code}</td>
+        <td>${codeBadge(c)}</td>
+        <td class="text-muted text-sm">${fmtDate(c.created_at)}</td>
+        <td class="text-sm">${fmtExpiry(c.expires_at)}</td>
+        <td style="color:var(--green)">${c.success}</td>
+        <td style="color:var(--yellow)">${c.already_used}</td>
+        <td style="color:var(--red)">${c.failed}</td>
+        <td style="width:120px;">
+          <div class="progress-bar">
+            <div class="progress-fill ${pct>80?'green':pct>40?'yellow':'red'}" style="width:${pct}%"></div>
+          </div>
+          <span style="font-size:11px;color:var(--muted)">${pct}%</span>
+        </td>
+      </tr>`;
+  });
+}
+
+function setHealth(key, val, unit, warn) {
+  const el   = document.getElementById(`h-${key}`);
+  const bar  = document.getElementById(`h-${key}-bar`);
+  const pct  = key === 'temp' ? Math.min(val/100*100, 100) : Math.min(val, 100);
+  const cls  = val > warn ? 'red' : val > warn*0.75 ? 'yellow' : 'green';
+  el.textContent  = val + unit;
+  el.style.color  = `var(--${cls})`;
+  bar.style.width = pct + '%';
+  bar.className   = `progress-fill ${cls}`;
+}
+
+// ── Players ──
+async function loadPlayers() {
+  allPlayers = await apiFetch('/players');
+  renderPlayers(allPlayers);
+}
+
+function renderPlayers(players) {
+  const tbody = document.getElementById('players-table-body');
+  tbody.innerHTML = '';
+  players.forEach(p => {
+    const removed = !!p.removed_at;
+    tbody.innerHTML += `
+      <tr style="${removed ? 'opacity:0.4' : ''}">
+        <td class="mono">${p.player_id}</td>
+        <td>${p.is_vip ? '<span class="vip-star">⭐ </span>' : ''}${p.username || '—'}</td>
+        <td>${p.is_vip
+          ? '<span class="badge badge-orange">VIP</span>'
+          : '<span class="badge badge-gray">—</span>'}</td>
+        <td class="text-muted text-sm">${fmtDate(p.active_since)}</td>
+        <td>${removed
+          ? '<span class="badge badge-red">Removed</span>'
+          : '<span class="badge badge-green">Active</span>'}</td>
+        <td>
+          <div class="flex gap-2">
+            ${p.is_vip
+              ? `<button class="btn btn-sm btn-ghost" onclick="toggleVip('${p.player_id}', false)">−VIP</button>`
+              : `<button class="btn btn-sm" style="background:var(--accent);color:#000" onclick="toggleVip('${p.player_id}', true)">+VIP</button>`}
+            ${removed
+              ? `<button class="btn btn-sm btn-ghost" onclick="restorePlayer('${p.player_id}')">Restore</button>`
+              : `<button class="btn btn-sm btn-danger" onclick="removePlayer('${p.player_id}')">Remove</button>`}
+          </div>
+        </td>
+      </tr>`;
+  });
+}
+
+function filterPlayers() {
+  const q = document.getElementById('player-search').value.toLowerCase();
+  const f = document.getElementById('player-filter').value;
+  let filtered = allPlayers.filter(p => {
+    const match = p.player_id.toLowerCase().includes(q) || (p.username||'').toLowerCase().includes(q);
+    if (!match) return false;
+    if (f === 'active') return !p.removed_at;
+    if (f === 'vip') return p.is_vip && !p.removed_at;
+    if (f === 'removed') return !!p.removed_at;
+    return true;
+  });
+  renderPlayers(filtered);
+}
+
+async function toggleVip(id, vip) {
+  await apiFetch(`/players/${id}`, { method: 'PATCH', body: JSON.stringify({is_vip: vip}) });
+  toast(vip ? '⭐ VIP added' : 'VIP removed');
+  loadPlayers();
+}
+
+async function removePlayer(id) {
+  if (!confirm(`Remove player ${id}?`)) return;
+  await apiFetch(`/players/${id}`, { method: 'DELETE' });
+  toast('Player removed');
+  loadPlayers();
+}
+
+async function restorePlayer(id) {
+  await apiFetch(`/players/${id}/restore`, { method: 'POST' });
+  toast('Player restored');
+  loadPlayers();
+}
+
+function openAddPlayer() {
+  document.getElementById('new-player-id').value = '';
+  document.getElementById('new-player-name').value = '';
+  document.getElementById('new-player-vip').checked = false;
+  document.getElementById('modal-add-player').classList.add('open');
+}
+
+async function submitAddPlayer() {
+  const id   = document.getElementById('new-player-id').value.trim();
+  const name = document.getElementById('new-player-name').value.trim();
+  const vip  = document.getElementById('new-player-vip').checked;
+  if (!id) { alert('Player ID required'); return; }
+  await apiFetch('/players', { method: 'POST', body: JSON.stringify({player_id:id, username:name, is_vip:vip}) });
+  closeModal('modal-add-player');
+  toast('Player added ✅');
+  loadPlayers();
+}
+
+// ── Codes ──
+async function loadCodes() {
+  const codes = await apiFetch('/codes');
+  const tbody = document.getElementById('codes-detail-body');
+  tbody.innerHTML = '';
+  codes.forEach(c => {
+    tbody.innerHTML += `
+      <tr>
+        <td class="mono">${c.code}</td>
+        <td>${codeBadge(c)}</td>
+        <td class="text-muted text-sm">${fmtDate(c.created_at)}</td>
+        <td class="text-sm">${fmtExpiry(c.expires_at)}</td>
+        <td style="color:var(--green)">${c.success}</td>
+        <td style="color:var(--yellow)">${c.already_used}</td>
+        <td style="color:var(--red)">${c.failed}</td>
+        <td><button class="btn btn-sm btn-ghost" onclick="openCodeDetail('${c.code}')">View</button></td>
+      </tr>`;
+  });
+}
+
+async function openCodeDetail(code) {
+  document.getElementById('modal-code-title').textContent = `Code: ${code}`;
+  document.getElementById('modal-code-body').innerHTML = '<div style="color:var(--muted);padding:20px;">Loading...</div>';
+  document.getElementById('modal-code-players').classList.add('open');
+
+  const players = await apiFetch(`/codes/${code}/players`);
+  const rows = players.map(p => {
+    const s = p.status || '—';
+    const icon = {SUCCESS:'✅',ALREADY_USED:'⚠️',FAILED:'❌',SERVER_BUSY:'🔄',UNKNOWN:'❓'}[s] || '—';
+    return `<tr>
+      <td class="mono" style="font-size:11px">${p.player_id}</td>
+      <td>${p.is_vip ? '⭐ ' : ''}${p.username || '—'}</td>
+      <td>${icon} <span class="badge ${statusBadgeClass(s)}">${s}</span></td>
+      <td class="text-muted text-sm">${p.created_at ? fmtDate(p.created_at) : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('modal-code-body').innerHTML = `
+    <table style="width:100%">
+      <thead><tr><th>ID</th><th>Player</th><th>Status</th><th>Date</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ── Logs ──
+async function loadLogs() {
+  const lines = document.getElementById('log-lines').value;
+  const d = await apiFetch(`/logs?lines=${lines}`);
+  const el = document.getElementById('log-output');
+  el.innerHTML = d.logs.split('\n').map(line => {
+    let cls = 'log-INFO';
+    if (line.includes('[WARNING]') || line.includes('⚠️')) cls = 'log-WARNING';
+    if (line.includes('[ERROR]') || line.includes('❌')) cls = 'log-ERROR';
+    if (line.includes('SUCCESS') || line.includes('✅')) cls = 'log-SUCCESS';
+    return `<div class="log-line ${cls}">${escHtml(line)}</div>`;
+  }).join('');
+  if (document.getElementById('auto-scroll').checked) {
+    el.scrollTop = el.scrollHeight;
+  }
+}
+
+function startLogPoller() {
+  loadLogs();
+  logInterval = setInterval(() => {
+    if (document.getElementById('page-logs').classList.contains('active')) {
+      loadLogs();
+    }
+  }, 5000);
+}
+
+// ── Settings ──
+async function loadSettings() {
+  settings = await apiFetch('/settings');
+  const defs = {
+    CHECK_INTERVAL_MIN:   { label: 'Check Interval', unit: 'minutes', desc: 'How often to check for new codes' },
+    RETRY_DELAY_HOURS:    { label: 'Retry Delay', unit: 'hours', desc: 'Wait before retrying failed players' },
+    EXPIRY_WARNING_HOURS: { label: 'Expiry Warning', unit: 'hours', desc: 'Warn before code expires' },
+    CPU_ALERT_THRESHOLD:  { label: 'CPU Alert', unit: '%', desc: 'Alert when CPU exceeds this' },
+    RAM_ALERT_THRESHOLD:  { label: 'RAM Alert', unit: '%', desc: 'Alert when RAM exceeds this' },
+    TEMP_ALERT_THRESHOLD: { label: 'Temperature Alert', unit: '°C', desc: 'Alert when temp exceeds this' },
+  };
+  const grid = document.getElementById('settings-grid');
+  grid.innerHTML = Object.entries(defs).map(([key, d]) => `
+    <div class="setting-card">
+      <div class="setting-label">${d.label} (${d.unit})</div>
+      <input class="setting-input" type="number" id="setting-${key}" value="${settings[key] ?? ''}" />
+      <div class="setting-desc">${d.desc}</div>
+    </div>`).join('');
+}
+
+async function saveSettings() {
+  const keys = ['CHECK_INTERVAL_MIN','RETRY_DELAY_HOURS','EXPIRY_WARNING_HOURS',
+                 'CPU_ALERT_THRESHOLD','RAM_ALERT_THRESHOLD','TEMP_ALERT_THRESHOLD'];
+  const update = {};
+  keys.forEach(k => {
+    const el = document.getElementById(`setting-${k}`);
+    if (el) update[k] = Number(el.value);
+  });
+  await apiFetch('/settings', { method: 'POST', body: JSON.stringify(update) });
+  toast('Settings saved ✅');
+}
+
+// ── Helpers ──
+function codeBadge(c) {
+  if (!c.is_currently_active) return '<span class="badge badge-gray">INACTIVE</span>';
+  if (c.is_completed)         return '<span class="badge badge-green">COMPLETE</span>';
+  return '<span class="badge badge-blue">ACTIVE</span>';
+}
+
+function statusBadgeClass(s) {
+  return {SUCCESS:'badge-green',ALREADY_USED:'badge-yellow',FAILED:'badge-red',
+          SERVER_BUSY:'badge-blue',UNKNOWN:'badge-gray'}[s] || 'badge-gray';
+}
+
+function fmtDate(dt) {
+  if (!dt) return '—';
+  return dt.slice(0,10);
+}
+
+function fmtExpiry(dt) {
+  if (!dt) return '<span class="text-muted">No expiry</span>';
+  const exp = new Date(dt);
+  const now = new Date();
+  const h = Math.round((exp - now) / 3600000);
+  const color = h < 24 ? 'var(--red)' : h < 72 ? 'var(--yellow)' : 'var(--muted)';
+  return `<span style="color:${color}">${dt.slice(0,10)} <span style="font-size:11px">(${h}h)</span></span>`;
+}
+
+function escHtml(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if(e.target===o) o.classList.remove('open'); });
+});
+</script>
+</body>
+</html>

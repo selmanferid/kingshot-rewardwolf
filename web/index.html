@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>KingShot WLF Rewardwolf</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+:root {
+  --bg:#0a0c10; --surface:#111318; --surface2:#161a22; --border:#1e222c;
+  --accent:#f5a623; --accent2:#e8441a; --green:#22c55e; --yellow:#eab308;
+  --red:#ef4444; --blue:#3b82f6; --purple:#a855f7;
+  --text:#e2e8f0; --muted:#64748b;
+  --font:'Rajdhani',sans-serif; --mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;min-height:100vh;}
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;
+  background:radial-gradient(ellipse at 50% 0%,#f5a62312 0%,var(--bg) 70%);}
+.login-box{background:var(--surface);border:1px solid var(--border);border-top:2px solid var(--accent);
+  padding:48px 40px;width:400px;}
+.login-logo{font-size:26px;font-weight:700;letter-spacing:3px;color:var(--accent);text-align:center;margin-bottom:4px;}
+.login-wolf{font-size:12px;color:var(--muted);text-align:center;letter-spacing:3px;margin-bottom:32px;text-transform:uppercase;}
+.form-group{margin-bottom:16px;}
+.form-group label{display:block;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;}
+.form-group input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);
+  padding:10px 14px;font-family:var(--mono);font-size:13px;outline:none;transition:border-color .2s;}
+.form-group input:focus{border-color:var(--accent);}
+.btn{background:var(--accent);color:#000;border:none;padding:11px 22px;font-family:var(--font);
+  font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer;text-transform:uppercase;transition:opacity .2s;}
+.btn:hover{opacity:.85;}
+.btn-full{width:100%;}
+.btn-sm{padding:5px 14px;font-size:12px;letter-spacing:1px;}
+.btn-danger{background:var(--red);color:#fff;}
+.btn-success{background:var(--green);color:#000;}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text);font-size:12px;letter-spacing:1px;}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+.btn-warn{background:var(--yellow);color:#000;}
+.btn-blue{background:var(--blue);color:#fff;}
+.error-msg{color:var(--red);font-size:13px;text-align:center;margin-top:12px;min-height:20px;}
+#app{display:none;}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:220px;background:var(--surface);
+  border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;}
+.sidebar-logo{padding:16px 20px;border-bottom:1px solid var(--border);}
+.sidebar-logo-main{font-size:17px;font-weight:700;letter-spacing:2px;color:var(--accent);}
+.sidebar-logo-sub{font-size:10px;color:var(--muted);letter-spacing:2px;margin-top:2px;}
+.nav{flex:1;padding:10px 0;overflow-y:auto;}
+.nav-section{font-size:10px;letter-spacing:2px;color:var(--muted);padding:10px 20px 4px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;cursor:pointer;
+  color:var(--muted);font-size:13px;font-weight:500;letter-spacing:1px;text-transform:uppercase;
+  border-left:2px solid transparent;transition:all .15s;}
+.nav-item:hover{color:var(--text);background:#ffffff05;}
+.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:#f5a62308;}
+.sidebar-footer{padding:14px 20px;border-top:1px solid var(--border);}
+.daemon-pill{display:flex;align-items:center;gap:8px;margin-bottom:10px;
+  background:var(--bg);border:1px solid var(--border);padding:7px 12px;}
+.status-dot{width:7px;height:7px;border-radius:50%;}
+.status-dot.running{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite;}
+.status-dot.stopped{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+.sidebar-time{font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:8px;}
+.logout-btn{width:100%;background:none;border:1px solid var(--border);color:var(--muted);
+  padding:7px;cursor:pointer;font-family:var(--font);font-size:11px;letter-spacing:1px;
+  text-transform:uppercase;transition:all .15s;}
+.logout-btn:hover{border-color:var(--red);color:var(--red);}
+.main{margin-left:220px;padding:22px 26px;min-height:100vh;}
+.page{display:none;}
+.page.active{display:block;}
+.page-title{font-size:22px;font-weight:700;letter-spacing:2px;margin-bottom:18px;
+  border-bottom:1px solid var(--border);padding-bottom:12px;}
+.page-title span{color:var(--accent);}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px;}
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:18px;}
+.card{background:var(--surface);border:1px solid var(--border);padding:16px 18px;}
+.card-label{font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:5px;}
+.card-value{font-size:28px;font-weight:700;line-height:1;}
+.card-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.c-accent{color:var(--accent);}.c-green{color:var(--green);}.c-yellow{color:var(--yellow);}
+.c-red{color:var(--red);}.c-blue{color:var(--blue);}.c-purple{color:var(--purple);}
+.table-wrap{background:var(--surface);border:1px solid var(--border);overflow:hidden;margin-bottom:18px;}
+.table-header{padding:10px 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.table-title{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;}
+table{width:100%;border-collapse:collapse;}
+th{padding:8px 13px;text-align:left;font-size:10px;letter-spacing:1.5px;color:var(--muted);
+  text-transform:uppercase;border-bottom:1px solid var(--border);font-weight:500;}
+td{padding:8px 13px;border-bottom:1px solid #ffffff05;font-size:13px;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:#ffffff03;}
+.mono{font-family:var(--mono);font-size:12px;}
+.badge{display:inline-block;padding:2px 8px;font-size:10px;letter-spacing:1px;font-weight:600;
+  text-transform:uppercase;font-family:var(--mono);}
+.badge-green{background:#22c55e18;color:var(--green);border:1px solid #22c55e30;}
+.badge-yellow{background:#eab30818;color:var(--yellow);border:1px solid #eab30830;}
+.badge-red{background:#ef444418;color:var(--red);border:1px solid #ef444430;}
+.badge-blue{background:#3b82f618;color:var(--blue);border:1px solid #3b82f630;}
+.badge-gray{background:#ffffff08;color:var(--muted);border:1px solid var(--border);}
+.badge-orange{background:#f5a62318;color:var(--accent);border:1px solid #f5a62330;}
+.badge-purple{background:#a855f718;color:var(--purple);border:1px solid #a855f730;}
+.progress-bar{height:3px;background:var(--border);}
+.progress-fill{height:100%;transition:width .6s;}
+.pf-green{background:var(--green);}.pf-yellow{background:var(--yellow);}.pf-red{background:var(--red);}
+.pf-blue{background:var(--blue);}.pf-accent{background:var(--accent);}
+.code-progress{height:4px;background:var(--border);margin-top:5px;}
+.code-progress-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--accent));transition:width .6s;}
+.dist-panel{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--blue);
+  padding:14px 18px;margin-bottom:18px;display:none;}
+.dist-panel.show{display:block;}
+.dist-title{font-size:12px;font-weight:700;letter-spacing:1.5px;color:var(--blue);margin-bottom:10px;text-transform:uppercase;}
+.dist-stats{display:flex;gap:20px;flex-wrap:wrap;font-size:13px;}
+.log-container{background:#06080c;border:1px solid var(--border);font-family:var(--mono);
+  font-size:12px;line-height:1.65;height:520px;overflow-y:auto;padding:12px 14px;}
+.log-line{white-space:pre-wrap;word-break:break-all;padding:1px 0;}
+.log-INFO{color:#7c8fa5;}.log-WARNING{color:var(--yellow);}.log-ERROR{color:var(--red);}
+.log-SUCCESS{color:var(--green);}
+.log-controls{display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite;}
+.select-input{background:var(--surface);border:1px solid var(--border);color:var(--text);
+  padding:5px 10px;font-family:var(--mono);font-size:12px;outline:none;}
+.select-input:focus{border-color:var(--accent);}
+.search-input{background:var(--surface);border:1px solid var(--border);color:var(--text);
+  padding:5px 11px;font-family:var(--mono);font-size:12px;outline:none;width:180px;}
+.search-input:focus{border-color:var(--accent);}
+.settings-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:18px;}
+.setting-card{background:var(--surface);border:1px solid var(--border);padding:16px 18px;}
+.setting-label{font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+.setting-input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);
+  padding:8px 11px;font-family:var(--mono);font-size:13px;outline:none;transition:border-color .2s;}
+.setting-input:focus{border-color:var(--accent);}
+.setting-desc{font-size:11px;color:var(--muted);margin-top:4px;}
+.code-editor{width:100%;background:#06080c;border:1px solid var(--border);color:#e2e8f0;
+  padding:14px;font-family:var(--mono);font-size:12px;line-height:1.65;
+  height:580px;resize:vertical;outline:none;tab-size:4;}
+.code-editor:focus{border-color:var(--accent);}
+.modal-overlay{display:none;position:fixed;inset:0;background:#000000cc;z-index:999;
+  align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-top:2px solid var(--accent);
+  padding:22px 26px;width:500px;max-height:85vh;overflow-y:auto;}
+.modal-lg{width:680px;}
+.modal-title{font-size:16px;font-weight:700;letter-spacing:1px;margin-bottom:16px;}
+.modal-actions{display:flex;gap:10px;margin-top:16px;justify-content:flex-end;}
+.daemon-controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;}
+.ctrl-btn{display:flex;align-items:center;gap:8px;padding:10px 20px;font-family:var(--font);
+  font-size:13px;font-weight:700;letter-spacing:1.5px;cursor:pointer;border:none;
+  text-transform:uppercase;transition:opacity .2s;}
+.ctrl-btn:hover{opacity:.8;}
+.ctrl-btn.start{background:var(--green);color:#000;}
+.ctrl-btn.stop{background:var(--red);color:#fff;}
+.ctrl-btn.restart{background:var(--yellow);color:#000;}
+.ctrl-btn.rebuild{background:var(--blue);color:#fff;}
+.terminal{background:#06080c;border:1px solid var(--border);padding:14px;
+  font-family:var(--mono);font-size:12px;height:280px;overflow-y:auto;margin-bottom:10px;}
+.term-line{line-height:1.65;white-space:pre-wrap;padding:1px 0;}
+.term-line.cmd{color:var(--accent);}
+.term-line.ok{color:var(--green);}
+.term-line.err{color:var(--red);}
+.term-line.info{color:#7c8fa5;}
+.term-input-wrap{display:flex;gap:8px;}
+.term-input{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);
+  padding:8px 11px;font-family:var(--mono);font-size:12px;outline:none;}
+.term-input:focus{border-color:var(--accent);}
+.section-title{font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--border);}
+.refresh-btn{background:none;border:1px solid var(--border);color:var(--muted);
+  padding:5px 12px;cursor:pointer;font-family:var(--font);font-size:11px;letter-spacing:1px;transition:all .15s;}
+.refresh-btn:hover{border-color:var(--accent);color:var(--accent);}
+.toast{position:fixed;bottom:22px;right:22px;background:var(--surface);border:1px solid var(--border);
+  border-left:3px solid var(--green);padding:9px 16px;font-size:13px;z-index:9999;
+  transform:translateX(20px);opacity:0;transition:all .3s;pointer-events:none;}
+.toast.show{transform:none;opacity:1;}
+.toast.err{border-left-color:var(--red);}
+.flex{display:flex;}.gap-2{gap:8px;}.gap-3{gap:12px;}.items-center{align-items:center;}
+.justify-between{justify-content:space-between;}.mt-2{margin-top:8px;}.mt-3{margin-top:12px;}
+.mt-4{margin-top:16px;}.text-muted{color:var(--muted);}.text-sm{font-size:13px;}.text-xs{font-size:11px;}
+.vip-star{color:var(--accent);}
+textarea.setting-input{height:80px;resize:vertical;}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">🐺 KINGSHOT WLF</div>
+    <div class="login-wolf">Rewardwolf · Command Center</div>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="login-user" placeholder="admin" autocomplete="username"/>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <button class="btn btn-full" onclick="doLogin()">ENTER</button>
+    <div id="login-error" class="error-msg"></div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-main">🐺 WLF</div>
+      <div class="sidebar-logo-sub">REWARDWOLF v2.0.2</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Overview</div>
+      <div class="nav-item active" onclick="showPage('dashboard')"><span>⬡</span>Dashboard</div>
+      <div class="nav-section">Management</div>
+      <div class="nav-item" onclick="showPage('players')"><span>◈</span>Players</div>
+      <div class="nav-item" onclick="showPage('codes')"><span>◆</span>Codes</div>
+      <div class="nav-section">System</div>
+      <div class="nav-item" onclick="showPage('daemon')"><span>⚡</span>Daemon</div>
+      <div class="nav-item" onclick="showPage('logs')"><span>▤</span>Logs</div>
+      <div class="nav-item" onclick="showPage('editor')"><span>✎</span>File Editor</div>
+      <div class="nav-item" onclick="showPage('settings')"><span>⚙</span>Settings</div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="daemon-pill">
+        <div class="status-dot stopped" id="daemon-dot"></div>
+        <span id="daemon-status-text" style="font-size:12px;color:var(--muted);">Checking...</span>
+      </div>
+      <div class="sidebar-time" id="sidebar-time"></div>
+      <button class="logout-btn" onclick="logout()">↩ Logout</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-title">DASH<span>BOARD</span></div>
+      <div class="dist-panel" id="dist-panel">
+        <div class="dist-title">🔄 Active Distribution</div>
+        <div class="dist-stats" id="dist-stats"></div>
+        <div class="progress-bar mt-2" style="height:4px;">
+          <div class="progress-fill pf-blue" id="dist-pbar" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="grid-4">
+        <div class="card"><div class="card-label">Players</div><div class="card-value c-accent" id="s-players">—</div><div class="card-sub" id="s-vip-sub"></div></div>
+        <div class="card"><div class="card-label">Total Redemptions</div><div class="card-value c-blue" id="s-total">—</div></div>
+        <div class="card"><div class="card-label">All-time Success</div><div class="card-value c-green" id="s-success">—</div></div>
+        <div class="card"><div class="card-label">Active Codes</div><div class="card-value c-accent" id="s-active-codes">—</div></div>
+      </div>
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-label">CPU</div>
+          <div class="card-value" id="h-cpu" style="font-size:22px;">—</div>
+          <div class="progress-bar mt-2"><div class="progress-fill" id="h-cpu-bar" style="width:0%"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-label">RAM</div>
+          <div class="card-value" id="h-ram" style="font-size:22px;">—</div>
+          <div class="progress-bar mt-2"><div class="progress-fill" id="h-ram-bar" style="width:0%"></div></div>
+          <div class="card-sub" id="h-ram-sub"></div>
+        </div>
+        <div class="card">
+          <div class="card-label">Temperature</div>
+          <div class="card-value" id="h-temp" style="font-size:22px;">—</div>
+          <div class="progress-bar mt-2"><div class="progress-fill" id="h-temp-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <span class="table-title">Gift Codes</span>
+          <button class="refresh-btn" onclick="loadDashboard()">↻ Refresh</button>
+        </div>
+        <table>
+          <thead><tr><th>Code</th><th>Status</th><th>Expires</th><th>✅ Success</th><th>⚠️ Already</th><th>❌ Failed</th><th>Progress</th></tr></thead>
+          <tbody id="dash-codes"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PLAYERS -->
+    <div class="page" id="page-players">
+      <div class="page-title">PLA<span>YERS</span></div>
+      <div class="flex justify-between items-center" style="margin-bottom:12px;gap:10px;flex-wrap:wrap;">
+        <div class="flex gap-2 items-center flex-wrap">
+          <input class="search-input" id="player-search" placeholder="Search name or ID..." oninput="filterPlayers()"/>
+          <select id="player-filter" class="select-input" onchange="filterPlayers()">
+            <option value="all">All</option>
+            <option value="active">Active</option>
+            <option value="vip">VIP Only</option>
+            <option value="removed">Removed</option>
+          </select>
+          <button class="refresh-btn" onclick="loadPlayers()">↻</button>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-sm btn-blue" onclick="syncSheets()">↻ Sync Sheets</button>
+          <button class="btn btn-sm" onclick="openAddPlayer()">+ Add Player</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Name</th><th>VIP</th><th>Since</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="players-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CODES -->
+    <div class="page" id="page-codes">
+      <div class="page-title">CO<span>DES</span></div>
+      <div style="margin-bottom:12px;">
+        <button class="refresh-btn" onclick="loadCodes()">↻ Refresh</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Code</th><th>Status</th><th>Created</th><th>Expires</th><th>✅</th><th>⚠️</th><th>❌</th><th>Progress</th><th>Detail</th></tr></thead>
+          <tbody id="codes-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- DAEMON -->
+    <div class="page" id="page-daemon">
+      <div class="page-title">DAE<span>MON</span></div>
+      <div class="section-title">Controls</div>
+      <div class="daemon-controls">
+        <button class="ctrl-btn start" onclick="daemonAction('start')">▶ Start</button>
+        <button class="ctrl-btn stop" onclick="daemonAction('stop')">■ Stop</button>
+        <button class="ctrl-btn restart" onclick="daemonAction('restart')">↺ Restart</button>
+        <button class="ctrl-btn rebuild" onclick="daemonAction('rebuild')">🔨 Rebuild</button>
+      </div>
+      <div class="section-title" style="margin-top:20px;">Telegram Message</div>
+      <div class="card" style="margin-bottom:20px;">
+        <textarea id="tg-msg" class="setting-input" style="height:80px;resize:vertical;margin-bottom:10px;" placeholder="Send a message to the group..."></textarea>
+        <button class="btn btn-sm" onclick="sendTelegram()">📤 Send to Telegram</button>
+      </div>
+      <div class="section-title">Quick Terminal</div>
+      <div class="terminal" id="terminal">
+        <div class="term-line info">KingShot WLF Terminal — docker commands only</div>
+        <div class="term-line info">Allowed: docker logs, docker ps, docker start/stop/restart</div>
+      </div>
+      <div class="term-input-wrap">
+        <input class="term-input" id="term-input" placeholder="docker logs kingshot-daemon --tail 30"/>
+        <button class="btn btn-sm" onclick="runTerminal()">Run</button>
+      </div>
+    </div>
+
+    <!-- LOGS -->
+    <div class="page" id="page-logs">
+      <div class="page-title">LO<span>GS</span></div>
+      <div class="log-controls">
+        <div class="live-dot"></div>
+        <span style="font-size:10px;color:var(--muted);letter-spacing:1px;">LIVE</span>
+        <select class="select-input" id="log-lines">
+          <option value="50">50</option><option value="100" selected>100</option>
+          <option value="200">200</option><option value="500">500</option>
+        </select>
+        <select class="select-input" id="log-level" onchange="loadLogs()">
+          <option value="ALL">All</option>
+          <option value="INFO">Info</option>
+          <option value="WARNING">Warning</option>
+          <option value="ERROR">Error</option>
+        </select>
+        <input class="search-input" id="log-search" placeholder="Search..." oninput="loadLogs()" style="width:160px;"/>
+        <button class="refresh-btn" onclick="loadLogs()">↻</button>
+        <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);cursor:pointer;">
+          <input type="checkbox" id="auto-scroll" checked/> Auto-scroll
+        </label>
+      </div>
+      <div class="log-container" id="log-output"></div>
+    </div>
+
+    <!-- EDITOR -->
+    <div class="page" id="page-editor">
+      <div class="page-title">FILE <span>EDITOR</span></div>
+      <div class="flex justify-between items-center" style="margin-bottom:10px;">
+        <span class="text-muted text-sm mono">kingshot_giftcode_daemon.py</span>
+        <div class="flex gap-2">
+          <button class="btn btn-sm btn-ghost" onclick="loadEditorFile()">↻ Reload</button>
+          <button class="btn btn-sm btn-warn" onclick="saveEditorFile()">💾 Save</button>
+          <button class="btn btn-sm btn-danger" onclick="saveAndRebuild()">💾 Save & Rebuild</button>
+        </div>
+      </div>
+      <div class="text-muted text-xs" style="margin-bottom:8px;">⚠️ Save & Rebuild will restart the daemon container.</div>
+      <textarea class="code-editor" id="code-editor" spellcheck="false"
+        onkeydown="if(event.key==='Tab'){event.preventDefault();let s=this.selectionStart;this.value=this.value.substring(0,s)+'    '+this.value.substring(this.selectionEnd);this.selectionStart=this.selectionEnd=s+4;}"></textarea>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div class="page-title">SET<span>TINGS</span></div>
+      <div class="settings-grid" id="settings-grid"></div>
+      <button class="btn" style="padding:10px 36px;" onclick="saveSettings()">SAVE SETTINGS</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- Add Player Modal -->
+<div class="modal-overlay" id="modal-add-player">
+  <div class="modal">
+    <div class="modal-title">Add Player</div>
+    <div class="form-group">
+      <label>Player ID</label>
+      <input type="text" id="new-pid" class="setting-input" placeholder="e.g. 12345678"/>
+    </div>
+    <div class="form-group mt-2">
+      <label>Username</label>
+      <input type="text" id="new-pname" class="setting-input" placeholder="e.g. Selman"/>
+    </div>
+    <div class="flex items-center gap-2 mt-2">
+      <input type="checkbox" id="new-pvip"/>
+      <label for="new-pvip" style="color:var(--accent);font-size:13px;cursor:pointer;">⭐ VIP Player</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-sm btn-ghost" onclick="closeModal('modal-add-player')">Cancel</button>
+      <button class="btn btn-sm" onclick="submitAddPlayer()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- Player History Modal -->
+<div class="modal-overlay" id="modal-player">
+  <div class="modal modal-lg">
+    <div class="modal-title" id="modal-player-title">Player History</div>
+    <div id="modal-player-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm btn-ghost" onclick="closeModal('modal-player')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Code Detail Modal -->
+<div class="modal-overlay" id="modal-code">
+  <div class="modal modal-lg">
+    <div class="modal-title" id="modal-code-title">Code Detail</div>
+    <div id="modal-code-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm btn-ghost" onclick="closeModal('modal-code')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = window.location.origin + '/api';
+let token = localStorage.getItem('ks_token');
+let allPlayers = [];
+let pollTimer = null;
+let settings = {};
+
+// ── Auth ──────────────────────────────────────────────────
+async function doLogin() {
+  const user = document.getElementById('login-user').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const err  = document.getElementById('login-error');
+  err.textContent = '';
+  try {
+    const fd = new FormData();
+    fd.append('username', user);
+    fd.append('password', pass);
+    const r = await fetch(`${API}/auth/login`, { method:'POST', body:fd });
+    if (!r.ok) { err.textContent = 'Invalid username or password'; return; }
+    const d = await r.json();
+    token = d.access_token;
+    localStorage.setItem('ks_token', token);
+    enterApp();
+  } catch(e) { err.textContent = 'Connection error'; }
+}
+
+document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+function logout() {
+  token = null;
+  localStorage.removeItem('ks_token');
+  clearInterval(pollTimer);
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+async function apiFetch(path, opts={}) {
+  const r = await fetch(`${API}${path}`, {
+    ...opts,
+    headers: { 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json', ...(opts.headers||{}) }
+  });
+  if (r.status === 401) { logout(); throw new Error('Unauthorized'); }
+  return r.json();
+}
+
+function enterApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadDashboard();
+  checkDaemon();
+  setInterval(updateClock, 1000);
+  updateClock();
+  pollTimer = setInterval(() => {
+    if (document.getElementById('page-dashboard').classList.contains('active')) loadDashboard();
+    if (document.getElementById('page-logs').classList.contains('active')) loadLogs();
+    checkDaemon();
+  }, 8000);
+}
+
+function updateClock() {
+  document.getElementById('sidebar-time').textContent = new Date().toUTCString().slice(5,25) + ' UTC';
+}
+
+if (token) enterApp();
+
+// ── Nav ───────────────────────────────────────────────────
+const PAGES = ['dashboard','players','codes','daemon','logs','editor','settings'];
+function showPage(name) {
+  PAGES.forEach(p => {
+    document.getElementById(`page-${p}`).classList.remove('active');
+  });
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`page-${name}`).classList.add('active');
+  const idx = PAGES.indexOf(name);
+  if (idx >= 0) document.querySelectorAll('.nav-item')[idx]?.classList.add('active');
+  const actions = {
+    dashboard: loadDashboard,
+    players: loadPlayers,
+    codes: loadCodes,
+    logs: loadLogs,
+    editor: loadEditorFile,
+    settings: loadSettings,
+  };
+  if (actions[name]) actions[name]();
+}
+
+// ── Daemon Status ─────────────────────────────────────────
+async function checkDaemon() {
+  try {
+    const d = await apiFetch('/daemon/status');
+    const dot = document.getElementById('daemon-dot');
+    const txt = document.getElementById('daemon-status-text');
+    if (d.running) {
+      dot.className = 'status-dot running';
+      txt.textContent = 'Daemon Running';
+      txt.style.color = 'var(--green)';
+    } else {
+      dot.className = 'status-dot stopped';
+      txt.textContent = `Daemon: ${d.status}`;
+      txt.style.color = 'var(--red)';
+    }
+  } catch(e) {}
+}
+
+// ── Dashboard ─────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const d = await apiFetch('/dashboard');
+    document.getElementById('s-players').textContent    = d.players.total;
+    document.getElementById('s-vip-sub').textContent    = `${d.players.vip} VIP`;
+    document.getElementById('s-total').textContent      = d.stats.total_redemptions;
+    document.getElementById('s-success').textContent    = d.stats.total_success_all;
+    const activeCodes = d.codes.filter(c => c.is_currently_active && !c.is_completed).length;
+    document.getElementById('s-active-codes').textContent = activeCodes;
+    setHealthBar('cpu',  d.health.cpu, '%', 80);
+    setHealthBar('ram',  d.health.ram, '%', 85);
+    setHealthBar('temp', d.health.temp, '°C', 75);
+    document.getElementById('h-ram-sub').textContent =
+      `${d.health.ram_used_mb||0} / ${d.health.ram_total_mb||0} MB`;
+    const tbody = document.getElementById('dash-codes');
+    tbody.innerHTML = '';
+    d.codes.forEach(c => {
+      const done  = (c.success||0) + (c.already_used||0);
+      const total = (done + (c.failed||0)) || 1;
+      const pct   = Math.round(done / total * 100);
+      tbody.innerHTML += `<tr>
+        <td class="mono">${c.code}</td>
+        <td>${codeBadge(c)}</td>
+        <td>${fmtExpiry(c.expires_at)}</td>
+        <td style="color:var(--green)">${c.success||0}</td>
+        <td style="color:var(--yellow)">${c.already_used||0}</td>
+        <td style="color:var(--red)">${c.failed||0}</td>
+        <td style="width:130px;">
+          <div class="code-progress"><div class="code-progress-fill" style="width:${pct}%"></div></div>
+          <span class="text-xs text-muted">${pct}% (${done}/${d.players.total})</span>
+        </td>
+      </tr>`;
+    });
+  } catch(e) {}
+}
+
+function setHealthBar(key, val, unit, warn) {
+  const el  = document.getElementById(`h-${key}`);
+  const bar = document.getElementById(`h-${key}-bar`);
+  const cls = val > warn ? 'pf-red' : val > warn * .75 ? 'pf-yellow' : 'pf-green';
+  const col = val > warn ? 'var(--red)' : val > warn * .75 ? 'var(--yellow)' : 'var(--green)';
+  el.textContent = val + unit;
+  el.style.color = col;
+  bar.style.width = Math.min(val, 100) + '%';
+  bar.className = 'progress-fill ' + cls;
+}
+
+// ── Players ───────────────────────────────────────────────
+async function loadPlayers() {
+  allPlayers = await apiFetch('/players');
+  renderPlayers(allPlayers);
+}
+
+function renderPlayers(list) {
+  const tbody = document.getElementById('players-body');
+  tbody.innerHTML = '';
+  list.forEach(p => {
+    const removed = !!p.removed_at;
+    tbody.innerHTML += `<tr style="${removed ? 'opacity:.4' : ''}">
+      <td class="mono" style="cursor:pointer;color:var(--accent)" onclick="openPlayerHistory('${p.player_id}')">${p.player_id}</td>
+      <td style="cursor:pointer" onclick="openPlayerHistory('${p.player_id}')">${p.is_vip ? '<span class="vip-star">⭐ </span>' : ''}${esc(p.username)||'—'}</td>
+      <td>${p.is_vip ? '<span class="badge badge-orange">VIP</span>' : '<span class="badge badge-gray">—</span>'}</td>
+      <td class="text-xs text-muted">${fmtDate(p.active_since)}</td>
+      <td>${removed ? '<span class="badge badge-red">Removed</span>' : '<span class="badge badge-green">Active</span>'}</td>
+      <td>
+        <div class="flex gap-2">
+          ${p.is_vip
+            ? `<button class="btn btn-sm btn-ghost" onclick="toggleVip('${p.player_id}',false)">−VIP</button>`
+            : `<button class="btn btn-sm" style="background:var(--accent);color:#000;font-size:11px" onclick="toggleVip('${p.player_id}',true)">+VIP</button>`}
+          ${removed
+            ? `<button class="btn btn-sm btn-ghost" onclick="restorePlayer('${p.player_id}')">Restore</button>`
+            : `<button class="btn btn-sm btn-danger" onclick="removePlayer('${p.player_id}')">Remove</button>`}
+        </div>
+      </td>
+    </tr>`;
+  });
+}
+
+function filterPlayers() {
+  const q = document.getElementById('player-search').value.toLowerCase();
+  const f = document.getElementById('player-filter').value;
+  const filtered = allPlayers.filter(p => {
+    const match = p.player_id.toLowerCase().includes(q) || (p.username||'').toLowerCase().includes(q);
+    if (!match) return false;
+    if (f === 'active')  return !p.removed_at;
+    if (f === 'vip')     return p.is_vip && !p.removed_at;
+    if (f === 'removed') return !!p.removed_at;
+    return true;
+  });
+  renderPlayers(filtered);
+}
+
+async function toggleVip(id, vip) {
+  await apiFetch(`/players/${id}`, { method:'PATCH', body:JSON.stringify({is_vip:vip}) });
+  toast(vip ? '⭐ VIP added' : 'VIP removed');
+  loadPlayers();
+}
+async function removePlayer(id) {
+  if (!confirm(`Remove player ${id}?`)) return;
+  await apiFetch(`/players/${id}`, { method:'DELETE' });
+  toast('Player removed');
+  loadPlayers();
+}
+async function restorePlayer(id) {
+  await apiFetch(`/players/${id}/restore`, { method:'POST' });
+  toast('Player restored ✅');
+  loadPlayers();
+}
+
+async function openPlayerHistory(pid) {
+  document.getElementById('modal-player-title').textContent = 'Loading...';
+  document.getElementById('modal-player-body').innerHTML = '<div style="padding:16px;color:var(--muted)">Loading...</div>';
+  document.getElementById('modal-player').classList.add('open');
+  const d = await apiFetch(`/players/${pid}/history`);
+  const p = d.player;
+  document.getElementById('modal-player-title').textContent =
+    `${p.is_vip ? '⭐ ' : ''}${p.username || p.player_id} (${p.player_id})`;
+  const rows = d.history.map(r => {
+    const icon = {SUCCESS:'✅',ALREADY_USED:'⚠️',FAILED:'❌',SERVER_BUSY:'🔄',UNKNOWN:'❓'}[r.status] || '—';
+    return `<tr>
+      <td class="mono" style="font-size:11px">${r.code}</td>
+      <td>${icon} <span class="badge ${sBadge(r.status)}">${r.status||'—'}</span></td>
+      <td class="text-xs text-muted">${esc(r.message||'').slice(0,50)||'—'}</td>
+      <td class="text-xs text-muted">${fmtDate(r.created_at)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('modal-player-body').innerHTML = d.history.length
+    ? `<table style="width:100%"><thead><tr><th>Code</th><th>Status</th><th>Message</th><th>Date</th></tr></thead><tbody>${rows}</tbody></table>`
+    : '<div style="padding:16px;color:var(--muted)">No redemption history yet.</div>';
+}
+
+function openAddPlayer() {
+  document.getElementById('new-pid').value = '';
+  document.getElementById('new-pname').value = '';
+  document.getElementById('new-pvip').checked = false;
+  document.getElementById('modal-add-player').classList.add('open');
+}
+async function submitAddPlayer() {
+  const id   = document.getElementById('new-pid').value.trim();
+  const name = document.getElementById('new-pname').value.trim();
+  const vip  = document.getElementById('new-pvip').checked;
+  if (!id) { alert('Player ID is required'); return; }
+  await apiFetch('/players', { method:'POST', body:JSON.stringify({player_id:id, username:name, is_vip:vip}) });
+  closeModal('modal-add-player');
+  toast('Player added ✅');
+  loadPlayers();
+}
+
+async function syncSheets() {
+  toast('Syncing with Google Sheets...');
+  try {
+    const d = await apiFetch('/sync/sheets', { method:'POST' });
+    toast(`✅ Sync done — ${d.added} new players`);
+    loadPlayers();
+  } catch(e) {
+    toast('❌ Sync failed', true);
+  }
+}
+
+// ── Codes ─────────────────────────────────────────────────
+async function loadCodes() {
+  const codes = await apiFetch('/codes');
+  const tbody = document.getElementById('codes-body');
+  tbody.innerHTML = '';
+  codes.forEach(c => {
+    const done  = (c.success||0) + (c.already_used||0);
+    const total = (done + (c.failed||0)) || 1;
+    const pct   = Math.round(done / total * 100);
+    tbody.innerHTML += `<tr>
+      <td class="mono">${c.code}</td>
+      <td>${codeBadge(c)}</td>
+      <td class="text-xs text-muted">${fmtDate(c.created_at)}</td>
+      <td>${fmtExpiry(c.expires_at)}</td>
+      <td style="color:var(--green)">${c.success||0}</td>
+      <td style="color:var(--yellow)">${c.already_used||0}</td>
+      <td style="color:var(--red)">${c.failed||0}</td>
+      <td style="width:110px;">
+        <div class="code-progress"><div class="code-progress-fill" style="width:${pct}%"></div></div>
+        <span class="text-xs text-muted">${pct}%</span>
+      </td>
+      <td><button class="btn btn-sm btn-ghost" onclick="openCodeDetail('${c.code}')">View</button></td>
+    </tr>`;
+  });
+}
+
+async function openCodeDetail(code) {
+  document.getElementById('modal-code-title').textContent = `Code: ${code}`;
+  document.getElementById('modal-code-body').innerHTML = '<div style="padding:16px;color:var(--muted)">Loading...</div>';
+  document.getElementById('modal-code').classList.add('open');
+  const players = await apiFetch(`/codes/${code}/players`);
+  const rows = players.map(p => {
+    const icon = {SUCCESS:'✅',ALREADY_USED:'⚠️',FAILED:'❌',SERVER_BUSY:'🔄',UNKNOWN:'❓'}[p.status] || '—';
+    return `<tr>
+      <td class="mono" style="font-size:11px">${p.player_id}</td>
+      <td>${p.is_vip ? '⭐ ' : ''}${esc(p.username)||'—'}</td>
+      <td>${icon} <span class="badge ${sBadge(p.status)}">${p.status||'Pending'}</span></td>
+      <td class="text-xs text-muted">${fmtDate(p.created_at)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('modal-code-body').innerHTML = `
+    <table style="width:100%"><thead><tr><th>ID</th><th>Player</th><th>Status</th><th>Date</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
+
+// ── Daemon Controls ───────────────────────────────────────
+async function daemonAction(action) {
+  const labels = { start:'Starting', stop:'Stopping', restart:'Restarting', rebuild:'Rebuilding (may take a few minutes)' };
+  toast(`${labels[action]}...`);
+  try {
+    const d = await apiFetch(`/daemon/${action}`, { method:'POST' });
+    setTimeout(() => {
+      toast(d.ok ? `✅ ${action} successful` : `❌ ${d.output?.slice(0,80)||'failed'}`, !d.ok);
+    }, 800);
+    setTimeout(checkDaemon, 3000);
+  } catch(e) {
+    toast(`❌ Error: ${e.message}`, true);
+  }
+}
+
+async function sendTelegram() {
+  const msg = document.getElementById('tg-msg').value.trim();
+  if (!msg) { alert('Enter a message first'); return; }
+  const d = await apiFetch('/telegram/send', { method:'POST', body:JSON.stringify({message:msg}) });
+  toast(d.ok ? '✅ Sent to Telegram' : '❌ Failed to send', !d.ok);
+  if (d.ok) document.getElementById('tg-msg').value = '';
+}
+
+// ── Terminal ──────────────────────────────────────────────
+const ALLOWED = ['docker logs', 'docker ps', 'docker inspect', 'docker stats'];
+
+document.getElementById('term-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') runTerminal();
+});
+
+async function runTerminal() {
+  const input = document.getElementById('term-input');
+  const cmd   = input.value.trim();
+  if (!cmd) return;
+  input.value = '';
+  addTermLine(`$ ${cmd}`, 'cmd');
+  const allowed = ALLOWED.some(a => cmd.startsWith(a));
+  if (!allowed) {
+    addTermLine(`Not allowed. Permitted commands: ${ALLOWED.join(', ')}`, 'err');
+    return;
+  }
+  try {
+    if (cmd.includes('logs')) {
+      const n = cmd.match(/--tail\s+(\d+)/)?.[1] || 50;
+      const level = cmd.includes('ERROR') ? 'ERROR' : cmd.includes('WARNING') ? 'WARNING' : 'ALL';
+      const d = await apiFetch(`/logs?lines=${n}&level=${level}`);
+      d.logs.split('\n').forEach(l => addTermLine(l, l.includes('[ERROR]')?'err':l.includes('[WARNING]')?'':l.includes('✅')?'ok':'info'));
+    } else if (cmd === 'docker ps') {
+      const d = await apiFetch('/daemon/status');
+      addTermLine(`kingshot-daemon   ${d.status}`, d.running?'ok':'err');
+    } else {
+      addTermLine('Use the control buttons above for start/stop/restart/rebuild.', 'info');
+    }
+  } catch(e) {
+    addTermLine(`Error: ${e.message}`, 'err');
+  }
+}
+
+function addTermLine(text, cls='info') {
+  const term = document.getElementById('terminal');
+  const div  = document.createElement('div');
+  div.className  = `term-line ${cls}`;
+  div.textContent = text;
+  term.appendChild(div);
+  term.scrollTop = term.scrollHeight;
+}
+
+// ── Logs ──────────────────────────────────────────────────
+async function loadLogs() {
+  const lines  = document.getElementById('log-lines').value;
+  const level  = document.getElementById('log-level').value;
+  const search = document.getElementById('log-search').value;
+  try {
+    const d = await apiFetch(`/logs?lines=${lines}&level=${level}&search=${encodeURIComponent(search)}`);
+    const el = document.getElementById('log-output');
+    el.innerHTML = d.logs.split('\n').map(line => {
+      let cls = 'log-INFO';
+      if (line.includes('[WARNING]') || line.includes('⚠️'))       cls = 'log-WARNING';
+      else if (line.includes('[ERROR]') || line.includes('❌'))     cls = 'log-ERROR';
+      else if (line.includes('✅ SUCCESS') || line.includes('✅'))  cls = 'log-SUCCESS';
+      return `<div class="log-line ${cls}">${esc(line)}</div>`;
+    }).join('');
+    if (document.getElementById('auto-scroll').checked) el.scrollTop = el.scrollHeight;
+  } catch(e) {}
+}
+
+// ── File Editor ───────────────────────────────────────────
+async function loadEditorFile() {
+  try {
+    const d = await apiFetch('/daemon/file');
+    document.getElementById('code-editor').value = d.content;
+  } catch(e) {
+    document.getElementById('code-editor').value = `// Error loading file: ${e.message}`;
+  }
+}
+
+async function saveEditorFile() {
+  const content = document.getElementById('code-editor').value;
+  const d = await apiFetch('/daemon/file', { method:'POST', body:JSON.stringify({content}) });
+  toast(d.ok ? '✅ File saved' : '❌ Save failed', !d.ok);
+}
+
+async function saveAndRebuild() {
+  await saveEditorFile();
+  toast('Rebuilding...');
+  const d = await apiFetch('/daemon/rebuild', { method:'POST' });
+  setTimeout(() => toast(d.ok ? '✅ Rebuilt & restarted!' : '❌ Rebuild failed', !d.ok), 500);
+  setTimeout(checkDaemon, 5000);
+}
+
+// ── Settings ──────────────────────────────────────────────
+const SETTING_DEFS = {
+  CHECK_INTERVAL_MIN:   { label:'Check Interval (min)',  desc:'How often to check for new codes' },
+  RETRY_DELAY_HOURS:    { label:'Retry Delay (hours)',   desc:'Wait before retrying failed players' },
+  EXPIRY_WARNING_HOURS: { label:'Expiry Warning (hours)',desc:'Warn N hours before code expires' },
+  CPU_ALERT_THRESHOLD:  { label:'CPU Alert (%)',         desc:'Alert when CPU exceeds this' },
+  RAM_ALERT_THRESHOLD:  { label:'RAM Alert (%)',         desc:'Alert when RAM exceeds this' },
+  TEMP_ALERT_THRESHOLD: { label:'Temp Alert (°C)',       desc:'Alert when temperature exceeds this' },
+};
+
+async function loadSettings() {
+  settings = await apiFetch('/settings');
+  const grid = document.getElementById('settings-grid');
+  grid.innerHTML = Object.entries(SETTING_DEFS).map(([key, d]) => `
+    <div class="setting-card">
+      <div class="setting-label">${d.label}</div>
+      <input class="setting-input" type="number" id="cfg-${key}" value="${settings[key] ?? ''}"/>
+      <div class="setting-desc">${d.desc}</div>
+    </div>`).join('');
+}
+
+async function saveSettings() {
+  const update = {};
+  Object.keys(SETTING_DEFS).forEach(k => {
+    const el = document.getElementById(`cfg-${k}`);
+    if (el) update[k] = Number(el.value);
+  });
+  await apiFetch('/settings', { method:'POST', body:JSON.stringify(update) });
+  toast('Settings saved ✅');
+}
+
+// ── Helpers ───────────────────────────────────────────────
+function codeBadge(c) {
+  if (!c.is_currently_active) return '<span class="badge badge-gray">INACTIVE</span>';
+  if (c.is_completed)         return '<span class="badge badge-green">COMPLETE</span>';
+  return '<span class="badge badge-blue">ACTIVE</span>';
+}
+function sBadge(s) {
+  return { SUCCESS:'badge-green', ALREADY_USED:'badge-yellow', FAILED:'badge-red',
+           SERVER_BUSY:'badge-blue', UNKNOWN:'badge-gray' }[s] || 'badge-gray';
+}
+function fmtDate(dt) { return dt ? dt.slice(0,10) : '—'; }
+function fmtExpiry(dt) {
+  if (!dt) return '<span class="text-muted text-xs">No expiry</span>';
+  const h = Math.round((new Date(dt) - Date.now()) / 3600000);
+  const col = h < 24 ? 'var(--red)' : h < 72 ? 'var(--yellow)' : 'var(--muted)';
+  return `<span style="color:${col}" class="text-xs">${dt.slice(0,10)} (${h}h)</span>`;
+}
+function esc(t) {
+  return (t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function toast(msg, err=false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (err ? ' err' : '');
+  setTimeout(() => el.className = 'toast', 3000);
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
+});
+</script>
+</body>
+</html>
