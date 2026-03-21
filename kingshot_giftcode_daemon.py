@@ -1,5 +1,5 @@
 """
-KingShot Gift Code Redemption Daemon v2.0.2
+WLF Rewardwolf — Gift Code Daemon v2.0.2
 ============================================
 - Monitors Kingshot API for new gift codes
 - Fetches player list from Google Sheets
@@ -42,6 +42,8 @@ from selenium.webdriver.chrome.options import Options
 # ============================================================
 CONFIG = {
     "KINGSHOT_API":          os.getenv("KINGSHOT_API", "https://kingshot.net/api"),
+    "REBUILD_SERVER_URL":    os.getenv("REBUILD_SERVER_URL", "http://192.168.1.36:9999"),
+    "DASHBOARD_URL":         os.getenv("DASHBOARD_URL", "https://gift.ks-wolfpack.com"),
     "SHEETS_WEB_APP_URL":    os.getenv("SHEETS_WEB_APP_URL", ""),
     "CHECK_INTERVAL_MIN":    int(os.getenv("CHECK_INTERVAL_MIN", "5")),
     "HEADLESS":              os.getenv("HEADLESS", "true").lower() == "true",
@@ -243,8 +245,8 @@ def sync_players(sheet_players):
     now = datetime.now(timezone.utc).isoformat()
 
     # Get current DB state
-    c.execute("SELECT player_id, username, removed_at FROM players")
-    db_players = {row["player_id"]: row for row in c.fetchall()}
+    c.execute("SELECT player_id, username, is_vip, removed_at FROM players")
+    db_players = {row["player_id"]: dict(row) for row in c.fetchall()}
 
     sheet_ids = {p["playerId"] for p in sheet_players}
     db_ids = set(db_players.keys())
@@ -253,23 +255,34 @@ def sync_players(sheet_players):
     removed = []
     restored = []
 
+    vip_promoted = []
+    vip_demoted = []
+
     # New players
     for p in sheet_players:
         pid = p["playerId"]
         uname = p.get("username", "")
+        is_vip = 1 if p.get("is_vip") else 0
         if pid not in db_ids:
             c.execute("""
                 INSERT OR IGNORE INTO players (player_id, username, is_vip, active_since)
-                VALUES (?, ?, 0, ?)
-            """, (pid, uname, now))
+                VALUES (?, ?, ?, ?)
+            """, (pid, uname, is_vip, now))
             added.append(p)
         else:
             # Update username, restore if previously removed
             if db_players[pid]["removed_at"] is not None:
-                c.execute("UPDATE players SET removed_at=NULL, username=? WHERE player_id=?", (uname, pid))
+                c.execute("UPDATE players SET removed_at=NULL, username=?, is_vip=? WHERE player_id=?", (uname, is_vip, pid))
                 restored.append(p)
             else:
-                c.execute("UPDATE players SET username=? WHERE player_id=?", (uname, pid))
+                # Check VIP status change
+                old_vip = db_players[pid].get("is_vip", 0)
+                if old_vip != is_vip:
+                    if is_vip:
+                        vip_promoted.append(uname or pid)
+                    else:
+                        vip_demoted.append(uname or pid)
+                c.execute("UPDATE players SET username=?, is_vip=? WHERE player_id=?", (uname, is_vip, pid))
 
     # Removed players (soft delete)
     for pid in db_ids - sheet_ids:
@@ -292,8 +305,14 @@ def sync_players(sheet_players):
         )
     if restored:
         log.info(f"♻️ {len(restored)} player(s) restored: {[p.get('username') or p['playerId'] for p in restored]}")
+    if vip_promoted:
+        log.info(f"⭐ VIP promoted: {vip_promoted}")
+        send_telegram(f"⭐ <b>VIP promoted:</b>\n" + "\n".join(f"• {n}" for n in vip_promoted))
+    if vip_demoted:
+        log.info(f"🔽 VIP demoted: {vip_demoted}")
+        send_telegram(f"🔽 <b>VIP removed:</b>\n" + "\n".join(f"• {n}" for n in vip_demoted))
 
-    return added, removed, restored
+    return added, removed, restored, vip_promoted, vip_demoted
 
 def get_active_players():
     """Get all active (non-removed) players from DB."""
@@ -725,10 +744,14 @@ def create_driver():
     return driver
 
 def kill_zombie_chromium():
-    """Browser kapatıldıktan sonra kalan zombie Chromium process'leri temizle."""
+    """Browser kapatıldıktan sonra kalan zombie Chromium process'leri temizle — host üzerinden."""
     try:
-        import subprocess
-        subprocess.run(["pkill", "-9", "-f", "chromium"], capture_output=True)
+        import urllib.request
+        req = urllib.request.Request(
+            CONFIG["REBUILD_SERVER_URL"] + "/kill-zombies",
+            method="POST"
+        )
+        urllib.request.urlopen(req, timeout=5)
     except Exception:
         pass
 
@@ -1187,7 +1210,7 @@ def build_startup_message(active_codes_data):
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     msg = (
-        f"🚀 <b>KingShot Daemon v2.0.1</b> — {now_str}\n\n"
+        f"🚀 <b>WLF Rewardwolf v2.0.2</b> — {now_str}\n\n"
         f"👥 Players: {total_players} ({total_vip} VIP)\n"
         f"🎁 Codes processed: {total_codes}\n"
         f"💻 CPU {health['cpu_load']}% | RAM {health['ram_percent']}% | Temp {health['temp_c']}°C\n"
@@ -1393,7 +1416,7 @@ def telegram_command_loop():
                     try:
                         import urllib.request
                         req = urllib.request.Request(
-                            "http://192.168.1.36:9999/rebuild",
+                            CONFIG["REBUILD_SERVER_URL"] + "/rebuild",
                             method="POST"
                         )
                         urllib.request.urlopen(req, timeout=10)
@@ -1449,7 +1472,7 @@ def main():
 
     init_db()
 
-    log.info("🚀 KingShot Gift Code Daemon v2.0.1 started.")
+    log.info("🚀 WLF Rewardwolf Daemon v2.0.2 started.")
     log.info(f"   Check interval: {CONFIG['CHECK_INTERVAL_MIN']} minutes")
     log.info(f"   Retry delay: {CONFIG['RETRY_DELAY_HOURS']} hours")
     log.info(f"   Expiry warning: {CONFIG['EXPIRY_WARNING_HOURS']} hours before")
@@ -1480,7 +1503,7 @@ def main():
                 log.info("\n🔍 Checking for new gift codes...")
                 players = fetch_player_list()
                 if players:
-                    added, removed, restored = sync_players(players)
+                    added, removed, restored, vip_promoted, vip_demoted = sync_players(players)
 
                     # Yeni oyuncular — aktif kodları gönder
                     if added:
@@ -1517,6 +1540,19 @@ def main():
                         with _code_queue.mutex:
                             for i, (qcode, qplayers) in enumerate(_code_queue.queue):
                                 _code_queue.queue[i] = (qcode, [p for p in qplayers if p["playerId"] not in removed_ids])
+
+                    # VIP değişiklikleri — kuyruktaki oyuncu sıralamasını güncelle
+                    if vip_promoted or vip_demoted:
+                        fresh_players = get_active_players()
+                        fresh_map = {p["playerId"]: p for p in fresh_players}
+                        with _code_queue.mutex:
+                            for i, (qcode, qplayers) in enumerate(_code_queue.queue):
+                                # is_vip bilgisini güncelle
+                                updated = [dict(p, is_vip=fresh_map.get(p["playerId"], p).get("is_vip", 0)) for p in qplayers]
+                                # VIP önce gelecek şekilde sırala
+                                updated.sort(key=lambda p: 0 if p.get("is_vip") else 1)
+                                _code_queue.queue[i] = (qcode, updated)
+                        log.info(f"⭐ Queue reordered for VIP changes")
 
                 active_codes, codes_data = fetch_active_gift_codes(
                     run_expiry_check=not _is_first_run,
@@ -1578,7 +1614,7 @@ def main():
             pass  # Kuyruk boş, bekle
         except KeyboardInterrupt:
             log.info("\n⛔ Daemon stopped.")
-            send_telegram("⛔ <b>KingShot Daemon stopped.</b>")
+            send_telegram("⛔ <b>WLF Rewardwolf stopped.</b>")
             break
         except Exception as e:
             log.error(f"Main loop error: {e}")

@@ -1,5 +1,5 @@
 """
-KingShot WLF Rewardwolf — Web Dashboard v2.0.2
+WLF Rewardwolf — Web Dashboard v2.0.2
 """
 import os
 import json
@@ -24,10 +24,12 @@ SECRET_KEY  = os.getenv("JWT_SECRET",  "changeme")
 ADMIN_USER  = os.getenv("ADMIN_USER",  "admin")
 ADMIN_PASS  = os.getenv("ADMIN_PASS",  "kingshot123")
 COMPOSE_DIR = os.getenv("COMPOSE_DIR", "/home/selman/kingshot")
+REBUILD_SERVER_URL = os.getenv("REBUILD_SERVER_URL", "http://192.168.1.36:9999")
+DOCKER_TCP_URL = os.getenv("DOCKER_TCP_URL", "http://192.168.1.36:2375")
 ALGORITHM   = "HS256"
 TOKEN_EXPIRE = 60 * 24
 
-app = FastAPI(title="KingShot WLF", docs_url=None, redoc_url=None)
+app = FastAPI(title="WLF Rewardwolf", docs_url=None, redoc_url=None)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -73,25 +75,47 @@ def dashboard(_=Depends(verify_token)):
                  CASE WHEN expires_at IS NULL THEN '9999' ELSE expires_at END ASC
     """)
     codes = [dict(r) for r in c.fetchall()]
-    c.execute("SELECT SUM(success) as s, SUM(already_used) as a, SUM(failed) as f FROM active_codes")
-    row = c.fetchone()
-    # Redemptions total
+    # Gerçek zamanlı istatistikler redemptions tablosundan
     c.execute("SELECT COUNT(*) as cnt FROM redemptions WHERE status='SUCCESS'")
-    total_success_all = c.fetchone()["cnt"]
-    c.execute("SELECT COUNT(*) as cnt FROM redemptions")
-    total_redemptions = c.fetchone()["cnt"]
+    total_success = c.fetchone()["cnt"]
+    c.execute("SELECT COUNT(*) as cnt FROM redemptions WHERE status='ALREADY_USED'")
+    total_already_used = c.fetchone()["cnt"]
+    c.execute("SELECT COUNT(*) as cnt FROM redemptions WHERE status='FAILED'")
+    total_failed = c.fetchone()["cnt"]
+    c.execute("SELECT COUNT(DISTINCT code) as cnt FROM active_codes")
+    total_codes = c.fetchone()["cnt"]
+    codes_raw = conn.execute("""
+        SELECT ac.code, ac.is_currently_active, ac.is_completed, ac.expires_at, ac.created_at,
+               ac.player_count,
+               COALESCE(SUM(CASE WHEN r.status='SUCCESS' THEN 1 ELSE 0 END), 0) as success,
+               COALESCE(SUM(CASE WHEN r.status='ALREADY_USED' THEN 1 ELSE 0 END), 0) as already_used,
+               COALESCE(SUM(CASE WHEN r.status='FAILED' THEN 1 ELSE 0 END), 0) as failed
+        FROM active_codes ac
+        LEFT JOIN redemptions r ON r.code = ac.code
+        GROUP BY ac.code
+        ORDER BY ac.is_currently_active DESC, ac.created_at DESC
+    """).fetchall()
     conn.close()
+    health = get_health_data()
     return {
+        # Yeni format
+        "total_players": total_players,
+        "vip_count": total_vip,
+        "total_codes": total_codes,
+        "success": total_success,
+        "already_used": total_already_used,
+        "failed": total_failed,
+        "health": health,
+        # Eski frontend uyumluluğu
         "players": {"total": total_players, "vip": total_vip},
-        "codes": codes,
         "stats": {
-            "success": row["s"] or 0,
-            "already_used": row["a"] or 0,
-            "failed": row["f"] or 0,
-            "total_redemptions": total_redemptions,
-            "total_success_all": total_success_all,
+            "total_redemptions": total_success + total_already_used + total_failed,
+            "total_success_all": total_success,
+            "success": total_success,
+            "already_used": total_already_used,
+            "failed": total_failed,
         },
-        "health": get_health_data(),
+        "codes": [dict(r) for r in codes_raw],
     }
 
 # ── Players ───────────────────────────────────────────────
@@ -177,9 +201,16 @@ def list_codes(_=Depends(verify_token)):
     conn = db()
     c = conn.cursor()
     c.execute("""
-        SELECT code, created_at, expires_at, is_currently_active, is_completed,
-               total, success, already_used, failed, last_updated
-        FROM active_codes ORDER BY is_currently_active DESC, created_at DESC
+        SELECT ac.code, ac.created_at, ac.expires_at, ac.is_currently_active, ac.is_completed, ac.last_updated,
+               COALESCE(ac.player_count, 0) as player_count,
+               COALESCE(SUM(CASE WHEN r.status='SUCCESS' THEN 1 ELSE 0 END), 0) as success,
+               COALESCE(SUM(CASE WHEN r.status='ALREADY_USED' THEN 1 ELSE 0 END), 0) as already_used,
+               COALESCE(SUM(CASE WHEN r.status='FAILED' THEN 1 ELSE 0 END), 0) as failed,
+               COUNT(r.player_id) as total
+        FROM active_codes ac
+        LEFT JOIN redemptions r ON r.code = ac.code
+        GROUP BY ac.code
+        ORDER BY ac.is_currently_active DESC, ac.created_at DESC
     """)
     codes = [dict(r) for r in c.fetchall()]
     conn.close()
@@ -226,7 +257,7 @@ def get_logs(lines: int = 100, search: str = "", level: str = "ALL", _=Depends(v
 def rebuild_server(path):
     """Rebuild server üzerinden Docker komutlarını çalıştır."""
     import urllib.request
-    req = urllib.request.Request(f"http://192.168.1.36:9999{path}", method="POST")
+    req = urllib.request.Request(f"{REBUILD_SERVER_URL}{path}", method="POST")
     resp = urllib.request.urlopen(req, timeout=10)
     return resp.read().decode()
 
@@ -258,7 +289,7 @@ def daemon_restart(_=Depends(verify_token)):
 def daemon_rebuild(_=Depends(verify_token)):
     try:
         import urllib.request
-        req = urllib.request.Request("http://192.168.1.36:9999/rebuild", method="POST")
+        req = urllib.request.Request(REBUILD_SERVER_URL + "/rebuild", method="POST")
         urllib.request.urlopen(req, timeout=10)
         return {"ok": True, "output": "Rebuild started"}
     except Exception as e:
@@ -269,7 +300,7 @@ def daemon_status(_=Depends(verify_token)):
     try:
         import urllib.request
         # Docker TCP API üzerinden container durumunu kontrol et
-        req = urllib.request.Request("http://192.168.1.36:2375/containers/kingshot-daemon/json")
+        req = urllib.request.Request(DOCKER_TCP_URL + "/containers/kingshot-daemon/json")
         resp = urllib.request.urlopen(req, timeout=3)
         data = json.loads(resp.read())
         status = data.get("State", {}).get("Status", "unknown")

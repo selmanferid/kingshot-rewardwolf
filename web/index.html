@@ -452,7 +452,7 @@ async function doLogin() {
   const err  = document.getElementById('login-error');
   err.textContent = '';
   try {
-    const fd = new FormData();
+    const fd = new URLSearchParams();
     fd.append('username', user);
     fd.append('password', pass);
     const r = await fetch(`${API}/auth/login`, { method:'POST', body:fd });
@@ -545,12 +545,15 @@ async function checkDaemon() {
 // ── Dashboard ─────────────────────────────────────────────
 async function loadDashboard() {
   try {
-    const d = await apiFetch('/dashboard');
+    const [d, codes] = await Promise.all([
+      apiFetch('/dashboard'),
+      apiFetch('/codes')
+    ]);
     document.getElementById('s-players').textContent    = d.players.total;
     document.getElementById('s-vip-sub').textContent    = `${d.players.vip} VIP`;
     document.getElementById('s-total').textContent      = d.stats.total_redemptions;
     document.getElementById('s-success').textContent    = d.stats.total_success_all;
-    const activeCodes = d.codes.filter(c => c.is_currently_active && !c.is_completed).length;
+    const activeCodes = codes.filter(c => c.is_currently_active && !c.is_completed).length;
     document.getElementById('s-active-codes').textContent = activeCodes;
     setHealthBar('cpu',  d.health.cpu, '%', 80);
     setHealthBar('ram',  d.health.ram, '%', 85);
@@ -559,9 +562,9 @@ async function loadDashboard() {
       `${d.health.ram_used_mb||0} / ${d.health.ram_total_mb||0} MB`;
     const tbody = document.getElementById('dash-codes');
     tbody.innerHTML = '';
-    d.codes.forEach(c => {
+    codes.forEach(c => {
       const done  = (c.success||0) + (c.already_used||0);
-      const total = (done + (c.failed||0)) || 1;
+      const total = c.player_count || d.players.total || 97;
       const pct   = Math.round(done / total * 100);
       tbody.innerHTML += `<tr>
         <td class="mono">${c.code}</td>
@@ -572,7 +575,7 @@ async function loadDashboard() {
         <td style="color:var(--red)">${c.failed||0}</td>
         <td style="width:130px;">
           <div class="code-progress"><div class="code-progress-fill" style="width:${pct}%"></div></div>
-          <span class="text-xs text-muted">${pct}% (${done}/${d.players.total})</span>
+          <span class="text-xs text-muted">${pct}% (${done}/${total})</span>
         </td>
       </tr>`;
     });
@@ -704,12 +707,14 @@ async function syncSheets() {
 
 // ── Codes ─────────────────────────────────────────────────
 async function loadCodes() {
+  const playersData = await apiFetch("/players");
+  const playerCount = playersData.length || 97;
   const codes = await apiFetch('/codes');
   const tbody = document.getElementById('codes-body');
   tbody.innerHTML = '';
   codes.forEach(c => {
     const done  = (c.success||0) + (c.already_used||0);
-    const total = (done + (c.failed||0)) || 1;
+    const total = c.player_count || playerCount;
     const pct   = Math.round(done / total * 100);
     tbody.innerHTML += `<tr>
       <td class="mono">${c.code}</td>
