@@ -213,7 +213,7 @@ function pageHome(){
       </div>
       <div class="row" onclick="navTo('daemon')">
         <div class="row-ico" style="background:rgba(255,159,10,.15)">⚙</div>
-        <div class="row-body"><div class="row-title">Daemon Control</div><div class="row-sub">Restart, rebuild</div></div>
+        <div class="row-body"><div class="row-title">Rewardwolf Control</div><div class="row-sub">Restart, rebuild</div></div>
         <div class="row-right">›</div>
       </div>
     </div>`;
@@ -260,7 +260,7 @@ function pageDaemon(){
     <div class="list">
       <div class="row" style="cursor:default">
         <div class="row-ico" style="background:${run?'rgba(48,209,88,.15)':'rgba(255,69,58,.15)'}">${run?'🟢':'🔴'}</div>
-        <div class="row-body"><div class="row-title">Daemon</div><div class="row-sub" style="color:${run?'var(--green)':'var(--red)'}">${ds?.status?.toUpperCase()||'UNKNOWN'}</div></div>
+        <div class="row-body"><div class="row-title">Rewardwolf</div><div class="row-sub" style="color:${run?'var(--green)':'var(--red)'}">${ds?.status?.toUpperCase()||'UNKNOWN'}</div></div>
         <button onclick="loadDs()" style="background:transparent;border:none;color:var(--hint);font-size:20px;cursor:pointer;padding:4px">↻</button>
       </div>
     </div>
@@ -311,7 +311,7 @@ function render(){
       </div></div>`;
     return;
   }
-  const tabs=[{id:'home',ico:'📊',lbl:'Overview'},{id:'players',ico:'👥',lbl:'Players'},{id:'codes',ico:'🎁',lbl:'Codes'},{id:'daemon',ico:'⚙️',lbl:'Daemon'}];
+  const tabs=[{id:'home',ico:'📊',lbl:'Overview'},{id:'players',ico:'👥',lbl:'Players'},{id:'codes',ico:'🎁',lbl:'Codes'},{id:'daemon',ico:'⚙️',lbl:'Rewardwolf'}];
   const pages={home:pageHome,players:pagePlayers,codes:pageCodes,daemon:pageDaemon};
   const content=(pages[S.page]||pageHome)();
   const ds=S.ds;

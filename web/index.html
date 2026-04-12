@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>WLF REWARDWOLF | Command Center</title>
+<title>WLF GİFT PANEL | Command Center</title>
 <link rel="icon" type="image/x-icon" href="/favicon.ico"/>
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"/>
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"/>
@@ -168,7 +168,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
         <div class="mb-4">
           <img src="/logo.png" alt="Rewardwolf" class="w-16 h-16 rounded-xl mx-auto object-cover sp"/>
         </div>
-        <h1 class="font-head font-black text-2xl tracking-tighter text-pc">WLF REWARDWOLF</h1>
+        <h1 class="font-head font-black text-2xl tracking-tighter text-pc">WLF GİFT PANEL</h1>
         <p class="text-[11px] font-mono text-out tracking-[.2em] uppercase mt-1">Command Center · Secure Access</p>
       </div>
       <div class="space-y-4">
@@ -201,8 +201,8 @@ input:not([class]),select:not([class]),textarea:not([class]){
       <div class="flex items-center gap-3 overflow-hidden">
         <img src="/logo-64.png" alt="Rewardwolf" class="w-8 h-8 rounded-lg flex-shrink-0 object-cover"/>
         <div class="sb-logo-text overflow-hidden">
-          <div class="font-head font-black text-xs tracking-widest uppercase text-pc whitespace-nowrap">WLF REWARDWOLF</div>
-          <div class="font-mono text-[9px] text-out whitespace-nowrap">v2.1.0 · DAEMON</div>
+          <div class="font-head font-black text-xs tracking-widest uppercase text-pc whitespace-nowrap">WLF GİFT PANEL</div>
+          <div class="font-mono text-[9px] text-out whitespace-nowrap">v2.1.0 · REWARDWOLF</div>
         </div>
       </div>
       <button onclick="toggleSidebar()" class="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-md hover:bg-slh text-out hover:text-os transition-all ml-1" title="Toggle sidebar">
@@ -217,7 +217,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
       <div class="ni" onclick="showPage('players')"><span class="material-symbols-outlined text-[18px] flex-shrink-0">group</span><span class="ni-label">Players</span></div>
       <div class="ni" onclick="showPage('codes')"><span class="material-symbols-outlined text-[18px] flex-shrink-0">qr_code</span><span class="ni-label">Codes</span></div>
       <div class="ni-section px-4 pb-1 pt-2 font-mono text-[9px] uppercase tracking-[.2em] text-out/50 transition-all">System</div>
-      <div class="ni" onclick="showPage('daemon')"><span class="material-symbols-outlined text-[18px] flex-shrink-0">smart_toy</span><span class="ni-label">Daemon</span></div>
+      <div class="ni" onclick="showPage('daemon')"><span class="material-symbols-outlined text-[18px] flex-shrink-0">smart_toy</span><span class="ni-label">Rewardwolf</span></div>
       <div class="ni" onclick="showPage('logs')"><span class="material-symbols-outlined text-[18px] flex-shrink-0">list_alt</span><span class="ni-label">Logs</span></div>
       <div class="ni" onclick="showPage('editor')"><span class="material-symbols-outlined text-[18px] flex-shrink-0">code</span><span class="ni-label">File Editor</span></div>
       <div class="ni" onclick="showPage('settings')"><span class="material-symbols-outlined text-[18px] flex-shrink-0">settings</span><span class="ni-label">Settings</span></div>
@@ -245,7 +245,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
     <button onclick="openMobileSidebar()" class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-slh text-out hover:text-os transition-all">
       <span class="material-symbols-outlined text-xl">menu</span>
     </button>
-    <span class="font-head font-black text-sm tracking-widest uppercase text-pc">WLF REWARDWOLF</span>
+    <span class="font-head font-black text-sm tracking-widest uppercase text-pc">WLF GİFT PANEL</span>
     <div class="flex items-center gap-2">
       <div class="sdot stopped" id="daemon-dot-mobile"></div>
     </div>
@@ -423,12 +423,12 @@ input:not([class]),select:not([class]),textarea:not([class]){
       </div>
     </div>
 
-    <!-- ── DAEMON ── -->
+    <!-- ── REWARDWOLF ── -->
     <div class="page" id="page-daemon">
       <div class="p-4 md:p-8">
         <div class="mb-6 md:mb-8">
           <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out/60 mb-1">System</p>
-          <h1 class="font-head font-black text-2xl md:text-4xl tracking-tighter text-os">Daemon Control</h1>
+          <h1 class="font-head font-black text-2xl md:text-4xl tracking-tighter text-os">Rewardwolf Control</h1>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 mb-5">
@@ -455,7 +455,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
                 <div class="w-2.5 h-2.5 rounded-full bg-pc/40"></div>
                 <div class="w-2.5 h-2.5 rounded-full bg-t/40"></div>
               </div>
-              <span class="font-mono text-[10px] text-out/60">wolf_terminal — daemon control</span>
+              <span class="font-mono text-[10px] text-out/60">wolf_terminal — rewardwolf control</span>
             </div>
             <div id="terminal" class="flex-1 p-5 h-64 overflow-y-auto space-y-0.5">
               <div class="tl info">KingShot WLF Terminal — docker commands only</div>
@@ -876,7 +876,7 @@ async function checkDaemon() {
     const cls  = d.running ? 'sdot running' : 'sdot stopped';
     if (dot)  dot.className  = cls;
     if (dotM) dotM.className = cls;
-    txt.textContent  = d.running ? 'Daemon Running' : `Daemon: ${d.status}`;
+    txt.textContent  = d.running ? 'Rewardwolf Running' : `Rewardwolf: ${d.status}`;
     txt.style.color  = d.running ? '#84e588' : '#ffb4ab';
   } catch(e) {}
 }
