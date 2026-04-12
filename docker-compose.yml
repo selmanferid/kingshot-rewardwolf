@@ -19,7 +19,7 @@ services:
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
       - CHECK_INTERVAL_MIN=${CHECK_INTERVAL_MIN:-5}
       - HEADLESS=true
-    shm_size: '256mb'
+    shm_size: '64mb'
 
   web:
     build: ./web

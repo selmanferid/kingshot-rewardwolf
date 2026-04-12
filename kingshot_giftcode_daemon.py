@@ -751,10 +751,16 @@ def launch_browser(pw):
             '--no-sandbox',
             '--disable-dev-shm-usage',
             '--disable-gpu',
+            '--disable-software-rasterizer',
             '--disable-setuid-sandbox',
             '--no-zygote',
+            '--disable-extensions',
+            '--disable-background-networking',
+            '--disable-sync',
+            '--no-first-run',
             '--disable-blink-features=AutomationControlled',
             '--disable-features=IsolateOrigins,site-per-process',
+            '--js-flags=--max-old-space-size=64',
         ]
     )
 
@@ -954,11 +960,11 @@ def redeem_code_for_player(browser, player_id, username, gift_code, retry_count=
             ctx = create_context(browser)
             page = ctx.new_page()
 
-            # image ve media engelle; stylesheet/font SPA render için gerekli
+            # image/media/font engelle; stylesheet SPA render için gerekli (kaldırılırsa input görünmez)
             page.route(
                 "**/*",
                 lambda route: route.abort()
-                if route.request.resource_type in ("image", "media")
+                if route.request.resource_type in ("image", "media", "font")
                 else route.continue_(),
             )
 
