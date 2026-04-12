@@ -806,11 +806,32 @@ def public_dashboard(_=Depends(verify_api_key_header)):
     return d
 
 # ── Serve frontend ────────────────────────────────────────
-INDEX_HTML = "/app/web/dist/index.html"
+DIST = "/app/web/dist"
+INDEX_HTML = f"{DIST}/index.html"
 
 @app.get("/twa")
 def twa():
-    return FileResponse(os.path.join(os.path.dirname(INDEX_HTML), "twa.html"))
+    return FileResponse(f"{DIST}/twa.html")
+
+@app.get("/favicon.ico")
+def favicon():
+    return FileResponse(f"{DIST}/favicon.ico", media_type="image/x-icon")
+
+@app.get("/favicon-32.png")
+def favicon32():
+    return FileResponse(f"{DIST}/favicon-32.png", media_type="image/png")
+
+@app.get("/apple-touch-icon.png")
+def apple_touch():
+    return FileResponse(f"{DIST}/apple-touch-icon.png", media_type="image/png")
+
+@app.get("/logo.png")
+def logo():
+    return FileResponse(f"{DIST}/logo.png", media_type="image/png")
+
+@app.get("/logo-64.png")
+def logo64():
+    return FileResponse(f"{DIST}/logo-64.png", media_type="image/png")
 
 @app.get("/")
 @app.get("/{full_path:path}")

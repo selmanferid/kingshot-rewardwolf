@@ -4,6 +4,8 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
 <title>WLF Rewardwolf</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico"/>
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"/>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
   :root {
@@ -296,7 +298,7 @@ function render(){
   const root=document.getElementById('root');
   if(!S.authed){
     root.innerHTML=`<div class="login-page">
-      <div class="login-logo">🐺</div>
+      <div class="login-logo"><img src="/logo.png" alt="Rewardwolf" style="width:60px;height:60px;border-radius:14px;object-fit:cover;"/></div>
       <div class="login-title">Rewardwolf</div>
       <div class="login-sub">WLF Operations Center</div>
       <div class="login-form">
@@ -315,7 +317,7 @@ function render(){
   const ds=S.ds;
   root.innerHTML=`<div class="app">
     <div class="navbar">
-      <div><div class="navbar-title">🐺 Rewardwolf</div><div class="navbar-sub">WLF Operations</div></div>
+      <div style="display:flex;align-items:center;gap:8px;"><img src="/logo-64.png" alt="" style="width:28px;height:28px;border-radius:7px;object-fit:cover;"/><div><div class="navbar-title">Rewardwolf</div><div class="navbar-sub">WLF Operations</div></div></div>
       <div class="daemon-pill">
         <div class="pulse ${ds?.running?'on':'off'}"></div>
         <span style="color:${ds?.running?'var(--green)':'var(--red)'}">${ds?.status?.toUpperCase()||'...'}</span>
