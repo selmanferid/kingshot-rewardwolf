@@ -1,16 +1,16 @@
 # 🐺 WLF Rewardwolf
 
-Automated gift code redemption daemon for KingShot mobile game. Monitors new codes via API, redeems them for all alliance members using Selenium/Chromium, with Telegram bot control, web dashboard, and Google Sheets integration. Built for Raspberry Pi 4.
+Automated gift code redemption daemon for KingShot mobile game. Monitors new codes via API, redeems them for all alliance members using Playwright/Chromium, with Telegram bot control and a web dashboard. Built for Raspberry Pi 4.
 
 ---
 
 ## Features
 
-- **Automatic redemption** — Monitors KingShot API for new gift codes and redeems them for all players over 24 hours with randomized intervals
+- **Automatic redemption** — Monitors KingShot API for new gift codes and redeems them for all players with randomized intervals
 - **Telegram bot** — Real-time notifications and control commands (`/status`, `/restart`, `/rebuild`, etc.)
 - **Web dashboard** — Full management interface at your domain
 - **Telegram Web App** — Native mobile-feel mini app accessible directly from Telegram
-- **Google Sheets sync** — Player list managed via Google Sheets, synced every 5 minutes
+- **Player management** — Players managed entirely via the web dashboard (add, remove, VIP toggle)
 - **Browser crash recovery** — Automatically restarts Chromium on crash and retries the same player
 - **Retry mechanism** — Failed redemptions are retried after 2 hours
 - **VIP players** — Priority processing for designated VIP members
@@ -23,13 +23,12 @@ Automated gift code redemption daemon for KingShot mobile game. Monitors new cod
 
 | Component | Technology |
 |-----------|-----------|
-| Daemon | Python 3.11, Selenium, Chromium |
+| Daemon | Python 3.11, Playwright |
 | Web backend | FastAPI, SQLite |
 | Web frontend | HTML/CSS/JS |
 | Containerization | Docker, Docker Compose |
 | Hardware | Raspberry Pi 4 |
 | Notifications | Telegram Bot API |
-| Player data | Google Sheets + Apps Script |
 
 ---
 
@@ -60,9 +59,8 @@ kingshot-rewardwolf/
 
 - Raspberry Pi 4 (4GB+ RAM recommended)
 - Docker + Docker Compose
-- Chromium installed on host
+- Chromium installed on host (`sudo apt install chromium-browser`)
 - Telegram bot token (via [@BotFather](https://t.me/BotFather))
-- Google Sheets Web App URL
 
 ### 1. Clone the repository
 
@@ -94,13 +92,8 @@ Add to crontab for auto-start on reboot:
 ### 4. Build and run
 
 ```bash
-docker build -t kingshot-daemon .
-docker compose up -d
+docker compose up -d --build
 ```
-
-### 5. Google Sheets setup
-
-Your Google Sheets should have a Web App script that returns player data as JSON. See `.env.example` for the required URL format.
 
 ---
 
@@ -126,11 +119,10 @@ Your Google Sheets should have a Web App script that returns player data as JSON
 Accessible at your configured domain. Features:
 
 - Live distribution status
-- Player management (VIP toggle, history)
+- Player management (add, remove, VIP toggle, history)
 - Code registry with per-code statistics
 - Real-time log viewer
 - Daemon controls (start, stop, restart, rebuild)
-- Google Sheets sync
 - Telegram message sender
 
 ---
@@ -152,7 +144,6 @@ See `.env.example` for all available configuration options.
 | Variable | Description |
 |----------|-------------|
 | `KINGSHOT_API` | KingShot API base URL |
-| `SHEETS_WEB_APP_URL` | Google Sheets Web App URL |
 | `TELEGRAM_TOKEN` | Telegram bot token |
 | `TELEGRAM_CHAT_ID` | Telegram group chat ID |
 | `JWT_SECRET` | Web dashboard JWT secret |

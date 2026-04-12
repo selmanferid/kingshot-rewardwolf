@@ -280,6 +280,21 @@
   .text-sm { font-size: 13px; }
   .vip-star { color: var(--accent); font-size: 13px; }
 
+  /* ── Role badges ── */
+  .badge-r5 { background: #a855f718; color: #a855f7; border: 1px solid #a855f730; }
+  .badge-r4 { background: #3b82f618; color: #60a5fa; border: 1px solid #3b82f630; }
+  .badge-r3 { background: #22c55e18; color: var(--green); border: 1px solid #22c55e30; }
+  .badge-r2 { background: #eab30818; color: var(--yellow); border: 1px solid #eab30830; }
+  .badge-r1 { background: #ffffff08; color: var(--muted); border: 1px solid var(--border); }
+
+  /* ── Role select (inline) ── */
+  .role-select {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 3px 6px; font-family: var(--mono); font-size: 12px; outline: none;
+    cursor: pointer;
+  }
+  .role-select:focus { border-color: var(--accent); }
+
   .toast {
     position: fixed; bottom: 24px; right: 24px;
     background: var(--surface); border: 1px solid var(--border);
@@ -416,7 +431,7 @@
       <div class="table-wrap">
         <table>
           <thead><tr>
-            <th>Player ID</th><th>Name</th><th>VIP</th><th>Since</th><th>Status</th><th>Actions</th>
+            <th>Player ID</th><th>Name</th><th>VIP</th><th>Role</th><th>Since</th><th>Status</th><th>Actions</th>
           </tr></thead>
           <tbody id="players-table-body"></tbody>
         </table>
@@ -487,6 +502,16 @@
     <div class="form-group mt-2" style="display:flex;align-items:center;gap:10px;">
       <input type="checkbox" id="new-player-vip"/>
       <label for="new-player-vip" style="color:var(--accent);font-size:13px;letter-spacing:1px;">VIP Player ⭐</label>
+    </div>
+    <div class="form-group mt-2">
+      <label>Role</label>
+      <select id="new-player-role" class="setting-input" style="font-family:var(--mono);font-size:13px;">
+        <option value="R1">R1 — Standard</option>
+        <option value="R2">R2</option>
+        <option value="R3">R3</option>
+        <option value="R4">R4</option>
+        <option value="R5">R5 — Senior</option>
+      </select>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-add-player')">Cancel</button>
@@ -645,11 +670,18 @@ async function loadPlayers() {
   renderPlayers(allPlayers);
 }
 
+function roleBadge(role) {
+  const r = (role || 'R1').toUpperCase();
+  const cls = { R5: 'badge-r5', R4: 'badge-r4', R3: 'badge-r3', R2: 'badge-r2', R1: 'badge-r1' }[r] || 'badge-r1';
+  return `<span class="badge ${cls}">${r}</span>`;
+}
+
 function renderPlayers(players) {
   const tbody = document.getElementById('players-table-body');
   tbody.innerHTML = '';
   players.forEach(p => {
     const removed = !!p.removed_at;
+    const role = p.role || 'R1';
     tbody.innerHTML += `
       <tr style="${removed ? 'opacity:0.4' : ''}">
         <td class="mono">${p.player_id}</td>
@@ -657,15 +689,21 @@ function renderPlayers(players) {
         <td>${p.is_vip
           ? '<span class="badge badge-orange">VIP</span>'
           : '<span class="badge badge-gray">—</span>'}</td>
+        <td>${roleBadge(role)}</td>
         <td class="text-muted text-sm">${fmtDate(p.active_since)}</td>
         <td>${removed
           ? '<span class="badge badge-red">Removed</span>'
           : '<span class="badge badge-green">Active</span>'}</td>
         <td>
-          <div class="flex gap-2">
+          <div class="flex gap-2 items-center">
             ${p.is_vip
               ? `<button class="btn btn-sm btn-ghost" onclick="toggleVip('${p.player_id}', false)">−VIP</button>`
               : `<button class="btn btn-sm" style="background:var(--accent);color:#000" onclick="toggleVip('${p.player_id}', true)">+VIP</button>`}
+            <select class="role-select" onchange="changeRole('${p.player_id}', this.value)" title="Change role">
+              ${['R1','R2','R3','R4','R5'].map(r =>
+                `<option value="${r}"${r === role ? ' selected' : ''}>${r}</option>`
+              ).join('')}
+            </select>
             ${removed
               ? `<button class="btn btn-sm btn-ghost" onclick="restorePlayer('${p.player_id}')">Restore</button>`
               : `<button class="btn btn-sm btn-danger" onclick="removePlayer('${p.player_id}')">Remove</button>`}
@@ -695,6 +733,12 @@ async function toggleVip(id, vip) {
   loadPlayers();
 }
 
+async function changeRole(id, role) {
+  await apiFetch(`/players/${id}`, { method: 'PATCH', body: JSON.stringify({role}) });
+  toast(`Role updated → ${role}`);
+  loadPlayers();
+}
+
 async function removePlayer(id) {
   if (!confirm(`Remove player ${id}?`)) return;
   await apiFetch(`/players/${id}`, { method: 'DELETE' });
@@ -712,6 +756,7 @@ function openAddPlayer() {
   document.getElementById('new-player-id').value = '';
   document.getElementById('new-player-name').value = '';
   document.getElementById('new-player-vip').checked = false;
+  document.getElementById('new-player-role').value = 'R1';
   document.getElementById('modal-add-player').classList.add('open');
 }
 
@@ -719,8 +764,9 @@ async function submitAddPlayer() {
   const id   = document.getElementById('new-player-id').value.trim();
   const name = document.getElementById('new-player-name').value.trim();
   const vip  = document.getElementById('new-player-vip').checked;
+  const role = document.getElementById('new-player-role').value;
   if (!id) { alert('Player ID required'); return; }
-  await apiFetch('/players', { method: 'POST', body: JSON.stringify({player_id:id, username:name, is_vip:vip}) });
+  await apiFetch('/players', { method: 'POST', body: JSON.stringify({player_id:id, username:name, is_vip:vip, role}) });
   closeModal('modal-add-player');
   toast('Player added ✅');
   loadPlayers();
@@ -830,8 +876,8 @@ async function saveSettings() {
 
 // ── Helpers ──
 function codeBadge(c) {
-  if (!c.is_currently_active) return '<span class="badge badge-gray">INACTIVE</span>';
-  if (c.is_completed)         return '<span class="badge badge-green">COMPLETE</span>';
+  if (c.is_completed && new Date(c.expires_at) > new Date()) return '<span class="badge badge-green">COMPLETE</span>';
+  if (!c.is_currently_active || new Date(c.expires_at) <= new Date()) return '<span class="badge badge-gray">INACTIVE</span>';
   return '<span class="badge badge-blue">ACTIVE</span>';
 }
 

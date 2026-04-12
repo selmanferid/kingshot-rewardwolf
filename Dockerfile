@@ -5,7 +5,9 @@ RUN apt-get update && apt-get install -y \
     libminizip1 \
     libglib2.0-0 \
     libnss3 \
+    libnspr4 \
     libfontconfig1 \
+    libatk1.0-0 \
     libatk-bridge2.0-0 \
     libgtk-3-0 \
     libx11-xcb1 \
@@ -17,9 +19,12 @@ RUN apt-get update && apt-get install -y \
     libpango-1.0-0 \
     libcairo2 \
     libasound2 \
+    libdbus-1-3 \
+    libdrm2 \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY requirements.txt .
+# Playwright'ı kur; host Chromium kullanıldığından tarayıcı indirmiyoruz
 RUN pip install --no-cache-dir -r requirements.txt
 COPY kingshot_giftcode_daemon.py .
 RUN mkdir -p /app/data

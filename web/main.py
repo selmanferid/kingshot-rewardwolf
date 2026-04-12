@@ -1,5 +1,5 @@
 """
-WLF Rewardwolf — Web Dashboard v2.0.2
+WLF Rewardwolf — Web Dashboard v2.0.3
 """
 import os
 import json
@@ -7,7 +7,7 @@ import sqlite3
 import subprocess
 from datetime import datetime, timezone, timedelta
 from typing import Optional
-from fastapi import FastAPI, HTTPException, Depends, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Depends, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
@@ -24,14 +24,19 @@ SECRET_KEY  = os.getenv("JWT_SECRET",  "changeme")
 ADMIN_USER  = os.getenv("ADMIN_USER",  "admin")
 ADMIN_PASS  = os.getenv("ADMIN_PASS",  "kingshot123")
 COMPOSE_DIR = os.getenv("COMPOSE_DIR", "/home/selman/kingshot")
-REBUILD_SERVER_URL = os.getenv("REBUILD_SERVER_URL", "http://192.168.1.36:9999")
-DOCKER_TCP_URL = os.getenv("DOCKER_TCP_URL", "http://192.168.1.36:2375")
-ALGORITHM   = "HS256"
+REBUILD_SERVER_URL = os.getenv("REBUILD_SERVER_URL", "")
+DOCKER_TCP_URL     = os.getenv("DOCKER_TCP_URL",     "")
+ALGORITHM    = "HS256"
 TOKEN_EXPIRE = 60 * 24
+
+# Brute force koruması
+_login_attempts: dict = {}  # {ip: [timestamp, ...]}
+LOGIN_MAX_ATTEMPTS   = 10
+LOGIN_WINDOW_SECONDS = 300  # 5 dakika
 
 app = FastAPI(title="WLF Rewardwolf", docs_url=None, redoc_url=None)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_ctx       = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 # ── Auth ──────────────────────────────────────────────────
@@ -46,11 +51,69 @@ def verify_token(token: str = Depends(oauth2_scheme)):
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
+def _check_brute_force(ip: str):
+    now      = datetime.now(timezone.utc).timestamp()
+    attempts = [t for t in _login_attempts.get(ip, []) if now - t < LOGIN_WINDOW_SECONDS]
+    _login_attempts[ip] = attempts
+    if len(attempts) >= LOGIN_MAX_ATTEMPTS:
+        raise HTTPException(status_code=429, detail="Too many login attempts. Try again in 5 minutes.")
+
+def _record_failed(ip: str):
+    now = datetime.now(timezone.utc).timestamp()
+    _login_attempts.setdefault(ip, []).append(now)
+
+def _clear_attempts(ip: str):
+    _login_attempts.pop(ip, None)
+
+def _verify_password(plain: str, stored: str) -> bool:
+    """Stored değer bcrypt hash'i ise pwd_ctx ile, değilse düz karşılaştır."""
+    if stored.startswith("$2"):
+        return pwd_ctx.verify(plain, stored)
+    return plain == stored
+
 @app.post("/api/auth/login")
-def login(form: OAuth2PasswordRequestForm = Depends()):
-    if form.username != ADMIN_USER or form.password != ADMIN_PASS:
+def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
+    ip = request.client.host
+    _check_brute_force(ip)
+    if form.username != ADMIN_USER or not _verify_password(form.password, ADMIN_PASS):
+        _record_failed(ip)
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    _clear_attempts(ip)
     return {"access_token": create_token(form.username), "token_type": "bearer"}
+
+# ── API Key Auth ──────────────────────────────────────────
+import secrets
+
+def init_api_keys_table():
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS api_keys (
+            key         TEXT PRIMARY KEY,
+            name        TEXT NOT NULL,
+            created_at  TEXT NOT NULL,
+            last_used   TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+def verify_api_key(key: str) -> bool:
+    conn = sqlite3.connect(DB_PATH)
+    row = conn.execute("SELECT key FROM api_keys WHERE key=?", (key,)).fetchone()
+    if row:
+        conn.execute("UPDATE api_keys SET last_used=? WHERE key=?",
+                     (datetime.now(timezone.utc).isoformat(), key))
+        conn.commit()
+    conn.close()
+    return row is not None
+
+from fastapi.security import APIKeyHeader
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+def verify_api_key_header(api_key: str = Depends(api_key_header)):
+    if not api_key or not verify_api_key(api_key):
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+    return api_key
 
 # ── DB ────────────────────────────────────────────────────
 def db():
@@ -98,7 +161,6 @@ def dashboard(_=Depends(verify_token)):
     conn.close()
     health = get_health_data()
     return {
-        # Yeni format
         "total_players": total_players,
         "vip_count": total_vip,
         "total_codes": total_codes,
@@ -106,7 +168,6 @@ def dashboard(_=Depends(verify_token)):
         "already_used": total_already_used,
         "failed": total_failed,
         "health": health,
-        # Eski frontend uyumluluğu
         "players": {"total": total_players, "vip": total_vip},
         "stats": {
             "total_redemptions": total_success + total_already_used + total_failed,
@@ -123,7 +184,11 @@ def dashboard(_=Depends(verify_token)):
 def list_players(_=Depends(verify_token)):
     conn = db()
     c = conn.cursor()
-    c.execute("SELECT player_id, username, is_vip, active_since, removed_at FROM players ORDER BY is_vip DESC, username ASC")
+    c.execute("""
+        SELECT player_id, username, is_vip, role, active_since, removed_at
+        FROM players
+        ORDER BY is_vip DESC, role DESC, username ASC
+    """)
     players = [dict(r) for r in c.fetchall()]
     conn.close()
     return players
@@ -132,20 +197,42 @@ class PlayerAdd(BaseModel):
     player_id: str
     username: str
     is_vip: bool = False
+    role: str = "R1"
 
 class PlayerUpdate(BaseModel):
     username: Optional[str] = None
     is_vip: Optional[bool] = None
+    role: Optional[str] = None
+
+def _resolve_name_from_api(player_id: str) -> str:
+    """Resolve player display name from KingShot API. Returns empty string on failure."""
+    import urllib.request as _ur
+    kingshot_api = os.getenv("KINGSHOT_API", "https://kingshot.net/api")
+    try:
+        req  = _ur.Request(
+            f"{kingshot_api}/player-info?playerId={player_id}",
+            headers={"Accept": "application/json"}
+        )
+        resp = _ur.urlopen(req, timeout=8)
+        data = json.loads(resp.read())
+        return (data.get("data", {}).get("name") or "").strip()
+    except Exception:
+        return ""
 
 @app.post("/api/players")
 def add_player(p: PlayerAdd, _=Depends(verify_token)):
+    username = p.username.strip() if p.username else ""
+    if not username:
+        username = _resolve_name_from_api(p.player_id)
     conn = db()
     c = conn.cursor()
-    c.execute("INSERT OR IGNORE INTO players (player_id, username, is_vip, active_since) VALUES (?, ?, ?, ?)",
-              (p.player_id, p.username, int(p.is_vip), datetime.now(timezone.utc).isoformat()))
+    c.execute(
+        "INSERT OR IGNORE INTO players (player_id, username, is_vip, role, active_since) VALUES (?, ?, ?, ?, ?)",
+        (p.player_id, username, int(p.is_vip), p.role, datetime.now(timezone.utc).isoformat())
+    )
     conn.commit()
     conn.close()
-    return {"ok": True}
+    return {"ok": True, "resolved_name": username or None}
 
 @app.patch("/api/players/{player_id}")
 def update_player(player_id: str, update: PlayerUpdate, _=Depends(verify_token)):
@@ -155,6 +242,8 @@ def update_player(player_id: str, update: PlayerUpdate, _=Depends(verify_token))
         c.execute("UPDATE players SET username=? WHERE player_id=?", (update.username, player_id))
     if update.is_vip is not None:
         c.execute("UPDATE players SET is_vip=? WHERE player_id=?", (int(update.is_vip), player_id))
+    if update.role is not None:
+        c.execute("UPDATE players SET role=? WHERE player_id=?", (update.role, player_id))
     conn.commit()
     conn.close()
     return {"ok": True}
@@ -169,6 +258,25 @@ def remove_player(player_id: str, _=Depends(verify_token)):
     conn.close()
     return {"ok": True}
 
+@app.get("/api/players/resolve/{player_id}")
+def resolve_player_name(player_id: str, _=Depends(verify_token)):
+    """Query KingShot API to resolve a player's display name by ID."""
+    import urllib.request as _urllib_req
+    kingshot_api = os.getenv("KINGSHOT_API", "https://kingshot.net/api")
+    try:
+        req  = _urllib_req.Request(
+            f"{kingshot_api}/player-info?playerId={player_id}",
+            headers={"Accept": "application/json"}
+        )
+        resp = _urllib_req.urlopen(req, timeout=10)
+        data = json.loads(resp.read())
+        name = (data.get("data", {}).get("name") or "").strip()
+        if name:
+            return {"ok": True, "name": name}
+        return {"ok": False, "name": None}
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Name resolve failed: {e}")
+
 @app.post("/api/players/{player_id}/restore")
 def restore_player(player_id: str, _=Depends(verify_token)):
     conn = db()
@@ -182,7 +290,7 @@ def restore_player(player_id: str, _=Depends(verify_token)):
 def player_history(player_id: str, _=Depends(verify_token)):
     conn = db()
     c = conn.cursor()
-    c.execute("SELECT player_id, username, is_vip, active_since, removed_at FROM players WHERE player_id=?", (player_id,))
+    c.execute("SELECT player_id, username, is_vip, role, active_since, removed_at FROM players WHERE player_id=?", (player_id,))
     player = dict(c.fetchone() or {})
     c.execute("""
         SELECT r.code, r.status, r.message, r.created_at, r.retry_count,
@@ -221,12 +329,12 @@ def code_players(code: str, _=Depends(verify_token)):
     conn = db()
     c = conn.cursor()
     c.execute("""
-        SELECT p.player_id, p.username, p.is_vip,
+        SELECT p.player_id, p.username, p.is_vip, p.role,
                r.status, r.message, r.created_at, r.retry_count
         FROM players p
         LEFT JOIN redemptions r ON r.player_id=p.player_id AND r.code=?
         WHERE p.removed_at IS NULL
-        ORDER BY p.is_vip DESC, p.username ASC
+        ORDER BY p.is_vip DESC, p.role DESC, p.username ASC
     """, (code,))
     rows = [dict(r) for r in c.fetchall()]
     conn.close()
@@ -254,67 +362,135 @@ def get_logs(lines: int = 100, search: str = "", level: str = "ALL", _=Depends(v
         return {"logs": f"Error: {e}"}
 
 # ── Docker Control ────────────────────────────────────────
-def rebuild_server(path):
+def _docker_unix_request(method: str, path: str, body=None) -> tuple:
+    """Make an HTTP request to the Docker Unix socket. Returns (status_code, response_body_str)."""
+    import socket as _socket
+    DOCKER_SOCK = '/var/run/docker.sock'
+    try:
+        sock = _socket.socket(_socket.AF_UNIX, _socket.SOCK_STREAM)
+        sock.settimeout(5)
+        sock.connect(DOCKER_SOCK)
+        body_bytes = json.dumps(body).encode() if body else b''
+        request_lines = [
+            f"{method} {path} HTTP/1.0",
+            "Host: localhost",
+            "Content-Type: application/json",
+            f"Content-Length: {len(body_bytes)}",
+            "",
+            "",
+        ]
+        sock.sendall(("\r\n".join(request_lines)).encode() + body_bytes)
+        response = b""
+        while True:
+            chunk = sock.recv(4096)
+            if not chunk:
+                break
+            response += chunk
+        sock.close()
+        header_end = response.find(b"\r\n\r\n")
+        status_line = response[:response.find(b"\r\n")].decode(errors='replace')
+        parts = status_line.split(" ", 2)
+        status_code = int(parts[1]) if len(parts) > 1 else 0
+        resp_body = response[header_end + 4:].decode(errors='replace') if header_end >= 0 else ""
+        return status_code, resp_body
+    except Exception as e:
+        return 0, str(e)
+
+def _rebuild_server(path):
     """Rebuild server üzerinden Docker komutlarını çalıştır."""
-    import urllib.request
-    req = urllib.request.Request(f"{REBUILD_SERVER_URL}{path}", method="POST")
-    resp = urllib.request.urlopen(req, timeout=10)
+    if not REBUILD_SERVER_URL:
+        raise HTTPException(status_code=503, detail="REBUILD_SERVER_URL not configured")
+    import urllib.request as _ur
+    req  = _ur.Request(f"{REBUILD_SERVER_URL}{path}", method="POST")
+    resp = _ur.urlopen(req, timeout=10)
     return resp.read().decode()
 
 @app.post("/api/daemon/start")
 def daemon_start(_=Depends(verify_token)):
     try:
-        out = rebuild_server("/start")
-        return {"ok": True, "output": out}
+        if REBUILD_SERVER_URL:
+            out = _rebuild_server("/start")
+            return {"ok": True, "output": out}
+        # Fallback: Docker socket
+        code, body = _docker_unix_request("POST", "/containers/kingshot-daemon/start")
+        ok = code in (204, 304)
+        msg = "Container started" if ok else f"HTTP {code}: {body.strip()[:120]}"
+        return {"ok": ok, "output": msg}
     except Exception as e:
         return {"ok": False, "output": str(e)}
 
 @app.post("/api/daemon/stop")
 def daemon_stop(_=Depends(verify_token)):
     try:
-        out = rebuild_server("/stop")
-        return {"ok": True, "output": out}
+        if REBUILD_SERVER_URL:
+            out = _rebuild_server("/stop")
+            return {"ok": True, "output": out}
+        # Fallback: Docker socket
+        code, body = _docker_unix_request("POST", "/containers/kingshot-daemon/stop")
+        ok = code in (204, 304)
+        msg = "Container stopped" if ok else f"HTTP {code}: {body.strip()[:120]}"
+        return {"ok": ok, "output": msg}
     except Exception as e:
         return {"ok": False, "output": str(e)}
 
 @app.post("/api/daemon/restart")
 def daemon_restart(_=Depends(verify_token)):
     try:
-        out = rebuild_server("/restart")
-        return {"ok": True, "output": out}
+        if REBUILD_SERVER_URL:
+            out = _rebuild_server("/restart")
+            return {"ok": True, "output": out}
+        # Fallback: Docker socket
+        code, body = _docker_unix_request("POST", "/containers/kingshot-daemon/restart")
+        ok = code in (204, 304)
+        msg = "Container restarted" if ok else f"HTTP {code}: {body.strip()[:120]}"
+        return {"ok": ok, "output": msg}
     except Exception as e:
         return {"ok": False, "output": str(e)}
 
 @app.post("/api/daemon/rebuild")
 def daemon_rebuild(_=Depends(verify_token)):
     try:
-        import urllib.request
-        req = urllib.request.Request(REBUILD_SERVER_URL + "/rebuild", method="POST")
-        urllib.request.urlopen(req, timeout=10)
-        return {"ok": True, "output": "Rebuild started"}
+        if REBUILD_SERVER_URL:
+            import urllib.request as _ur
+            req = _ur.Request(REBUILD_SERVER_URL + "/rebuild", method="POST")
+            _ur.urlopen(req, timeout=10)
+            return {"ok": True, "output": "Rebuild started via rebuild server"}
+        # Fallback: restart via Docker socket (can't do full compose rebuild without CLI)
+        code, body = _docker_unix_request("POST", "/containers/kingshot-daemon/restart")
+        ok = code in (204, 304)
+        msg = "Container restarted (no rebuild server — restart only)" if ok else f"HTTP {code}: {body.strip()[:120]}"
+        return {"ok": ok, "output": msg}
     except Exception as e:
         return {"ok": False, "output": str(e)}
 
 @app.get("/api/daemon/status")
 def daemon_status(_=Depends(verify_token)):
-    try:
-        import urllib.request
-        # Docker TCP API üzerinden container durumunu kontrol et
-        req = urllib.request.Request(DOCKER_TCP_URL + "/containers/kingshot-daemon/json")
-        resp = urllib.request.urlopen(req, timeout=3)
-        data = json.loads(resp.read())
-        status = data.get("State", {}).get("Status", "unknown")
-        running = data.get("State", {}).get("Running", False)
-        return {"status": status, "running": running}
-    except Exception:
-        # Fallback: DB'ye bağlanabiliyorsa running say
+    # 1. Try DOCKER_TCP_URL (remote Docker daemon)
+    if DOCKER_TCP_URL:
         try:
-            conn = db()
-            conn.execute("SELECT 1")
-            conn.close()
-            return {"status": "running", "running": True}
+            import urllib.request as _ur
+            req  = _ur.Request(DOCKER_TCP_URL + "/containers/kingshot-daemon/json")
+            resp = _ur.urlopen(req, timeout=3)
+            data = json.loads(resp.read())
+            return {
+                "status":  data.get("State", {}).get("Status",  "unknown"),
+                "running": data.get("State", {}).get("Running", False),
+            }
         except Exception:
-            return {"status": "unknown", "running": False}
+            pass
+    # 2. Fallback: Unix socket (docker.sock mounted in container)
+    try:
+        code, body = _docker_unix_request("GET", "/containers/kingshot-daemon/json")
+        if code == 200:
+            data = json.loads(body)
+            return {
+                "status":  data.get("State", {}).get("Status",  "unknown"),
+                "running": data.get("State", {}).get("Running", False),
+            }
+    except Exception:
+        pass
+    # 3. Last resort: unknown
+    return {"status": "unknown", "running": False}
 
 # ── Telegram ──────────────────────────────────────────────
 class TelegramMsg(BaseModel):
@@ -322,14 +498,26 @@ class TelegramMsg(BaseModel):
 
 @app.post("/api/telegram/send")
 def telegram_send(msg: TelegramMsg, _=Depends(verify_token)):
-    token = os.getenv("TELEGRAM_TOKEN", "")
+    token   = os.getenv("TELEGRAM_TOKEN",  "")
     chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
     if not token or not chat_id:
-        raise HTTPException(status_code=400, detail="Telegram not configured")
-    import requests as req
-    r = req.post(f"https://api.telegram.org/bot{token}/sendMessage",
-                 json={"chat_id": chat_id, "text": msg.message, "parse_mode": "HTML"}, timeout=10)
-    return {"ok": r.ok}
+        return {"ok": False, "error": "Telegram not configured (TELEGRAM_TOKEN or TELEGRAM_CHAT_ID missing)"}
+    try:
+        import requests as _req
+        r = _req.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": msg.message, "parse_mode": "HTML"},
+            timeout=10,
+        )
+        if r.ok:
+            return {"ok": True}
+        try:
+            detail = r.json().get("description", r.text[:120])
+        except Exception:
+            detail = r.text[:120]
+        return {"ok": False, "error": f"Telegram API: {detail}"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 # ── Settings ──────────────────────────────────────────────
 def load_config():
@@ -337,14 +525,14 @@ def load_config():
         with open(CONFIG_PATH) as f:
             return json.load(f)
     return {
-        "CHECK_INTERVAL_MIN": 5,
-        "RETRY_DELAY_HOURS": 2,
+        "CHECK_INTERVAL_MIN":   5,
+        "RETRY_DELAY_HOURS":    2,
         "EXPIRY_WARNING_HOURS": 72,
-        "CPU_ALERT_THRESHOLD": 80,
-        "RAM_ALERT_THRESHOLD": 85,
+        "CPU_ALERT_THRESHOLD":  80,
+        "RAM_ALERT_THRESHOLD":  85,
         "TEMP_ALERT_THRESHOLD": 75,
-        "TELEGRAM_TOKEN": os.getenv("TELEGRAM_TOKEN", ""),
-        "TELEGRAM_CHAT_ID": os.getenv("TELEGRAM_CHAT_ID", ""),
+        "TELEGRAM_TOKEN":       os.getenv("TELEGRAM_TOKEN",  ""),
+        "TELEGRAM_CHAT_ID":     os.getenv("TELEGRAM_CHAT_ID", ""),
     }
 
 def save_config(cfg):
@@ -362,8 +550,34 @@ def update_settings(settings: dict, _=Depends(verify_token)):
     save_config(cfg)
     return {"ok": True}
 
+# ── Player name sync (web-triggered) ─────────────────────
+@app.post("/api/players/sync-names")
+def sync_player_names_now(_=Depends(verify_token)):
+    """Resolve and refresh usernames from KingShot API for all active players (including renamed ones)."""
+    conn = db()
+    rows = conn.execute(
+        "SELECT player_id, username FROM players WHERE removed_at IS NULL"
+    ).fetchall()
+    conn.close()
+    updated = []
+    for row in rows:
+        pid      = row["player_id"]
+        old_name = (row["username"] or "").strip()
+        name = _resolve_name_from_api(pid)
+        if not name or name == old_name:
+            continue  # API returned nothing or name unchanged
+        conn = db()
+        conn.execute("UPDATE players SET username=? WHERE player_id=?", (name, pid))
+        conn.commit()
+        conn.close()
+        updated.append({"player_id": pid, "old_name": old_name, "name": name})
+    return {"ok": True, "updated": updated, "count": len(updated)}
+
 # ── Daemon file edit ──────────────────────────────────────
-DAEMON_FILE = "/app/data/../kingshot_giftcode_daemon.py"
+# Güvenlik: Dosya düzenleme için ek şifre onayı gerekli
+class DaemonFileWrite(BaseModel):
+    content:  str
+    password: str  # Değişiklik onayı için şifre tekrar istenir
 
 @app.get("/api/daemon/file")
 def get_daemon_file(_=Depends(verify_token)):
@@ -375,12 +589,25 @@ def get_daemon_file(_=Depends(verify_token)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/daemon/file")
-def save_daemon_file(body: dict, _=Depends(verify_token)):
+def save_daemon_file(body: DaemonFileWrite, _=Depends(verify_token)):
+    # Şifre tekrar doğrula
+    if not _verify_password(body.password, ADMIN_PASS):
+        raise HTTPException(status_code=403, detail="Invalid password confirmation")
     path = os.path.join(COMPOSE_DIR, "kingshot_giftcode_daemon.py")
+    # Backup al
+    backup_path = path + ".bak"
+    try:
+        if os.path.exists(path):
+            with open(path, "r") as f:
+                backup = f.read()
+            with open(backup_path, "w") as f:
+                f.write(backup)
+    except Exception:
+        pass
     try:
         with open(path, "w") as f:
-            f.write(body["content"])
-        return {"ok": True}
+            f.write(body.content)
+        return {"ok": True, "backup": backup_path}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -391,15 +618,15 @@ def sync_sheets(_=Depends(verify_token)):
     if not sheets_url:
         raise HTTPException(status_code=400, detail="Sheets URL not configured")
     import requests as req
-    r = req.get(sheets_url, timeout=60)
+    r    = req.get(sheets_url, timeout=60)
     data = r.json()
     if not data.get("success"):
         raise HTTPException(status_code=500, detail="Sheets sync failed")
     players = data["players"]
-    conn = db()
-    c = conn.cursor()
-    now = datetime.now(timezone.utc).isoformat()
-    added = 0
+    conn    = db()
+    c       = conn.cursor()
+    now     = datetime.now(timezone.utc).isoformat()
+    added   = 0
     for p in players:
         result = c.execute("INSERT OR IGNORE INTO players (player_id, username, is_vip, active_since) VALUES (?, ?, 0, ?)",
                           (p["playerId"], p.get("username", ""), now))
@@ -414,7 +641,7 @@ def get_health_data():
     health = {}
     try:
         result = subprocess.run(["cat", "/proc/loadavg"], capture_output=True, text=True)
-        load = float(result.stdout.split()[0])
+        load   = float(result.stdout.split()[0])
         health["cpu"] = round(load * 100 / (os.cpu_count() or 1), 1)
     except Exception:
         health["cpu"] = 0
@@ -425,15 +652,13 @@ def get_health_data():
             parts = line.split()
             if parts[0] in ("MemTotal:", "MemAvailable:"):
                 mem[parts[0]] = int(parts[1])
-        total = mem.get("MemTotal:", 1)
-        avail = mem.get("MemAvailable:", 0)
-        health["ram"] = round((total - avail) / total * 100, 1)
+        total  = mem.get("MemTotal:",     1)
+        avail  = mem.get("MemAvailable:", 0)
+        health["ram"]         = round((total - avail) / total * 100, 1)
         health["ram_used_mb"] = round((total - avail) / 1024)
-        health["ram_total_mb"] = round(total / 1024)
+        health["ram_total_mb"]= round(total / 1024)
     except Exception:
-        health["ram"] = 0
-        health["ram_used_mb"] = 0
-        health["ram_total_mb"] = 0
+        health["ram"] = health["ram_used_mb"] = health["ram_total_mb"] = 0
     try:
         result = subprocess.run(["cat", "/sys/class/thermal/thermal_zone0/temp"], capture_output=True, text=True)
         health["temp"] = round(int(result.stdout.strip()) / 1000, 1)
@@ -444,6 +669,77 @@ def get_health_data():
 @app.get("/api/health")
 def health(_=Depends(verify_token)):
     return get_health_data()
+
+# ── API Key Management ────────────────────────────────────
+class ApiKeyCreate(BaseModel):
+    name: str
+
+@app.on_event("startup")
+async def startup():
+    init_api_keys_table()
+
+@app.get("/api/apikeys")
+def list_api_keys(_=Depends(verify_token)):
+    conn = db()
+    rows = conn.execute("SELECT key, name, created_at, last_used FROM api_keys ORDER BY created_at DESC").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+@app.post("/api/apikeys")
+def create_api_key(body: ApiKeyCreate, _=Depends(verify_token)):
+    key = "rwf_" + secrets.token_urlsafe(32)
+    conn = db()
+    conn.execute("INSERT INTO api_keys (key, name, created_at) VALUES (?, ?, ?)",
+                 (key, body.name, datetime.now(timezone.utc).isoformat()))
+    conn.commit()
+    conn.close()
+    return {"key": key, "name": body.name}
+
+@app.delete("/api/apikeys/{key}")
+def delete_api_key(key: str, _=Depends(verify_token)):
+    conn = db()
+    conn.execute("DELETE FROM api_keys WHERE key=?", (key,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+# ── Public API (API Key ile) ───────────────────────────────
+@app.get("/api/public/codes")
+def public_codes(_=Depends(verify_api_key_header)):
+    """Aktif gift code listesi — Sköll ve diğer botlar için."""
+    conn = db()
+    rows = conn.execute("""
+        SELECT ac.code, ac.created_at, ac.expires_at, ac.is_currently_active, ac.is_completed,
+               COALESCE(SUM(CASE WHEN r.status='SUCCESS' THEN 1 ELSE 0 END), 0) as success,
+               COALESCE(SUM(CASE WHEN r.status='ALREADY_USED' THEN 1 ELSE 0 END), 0) as already_used,
+               COALESCE(SUM(CASE WHEN r.status='FAILED' THEN 1 ELSE 0 END), 0) as failed
+        FROM active_codes ac
+        LEFT JOIN redemptions r ON r.code = ac.code
+        GROUP BY ac.code
+        ORDER BY ac.is_currently_active DESC, ac.created_at DESC
+    """).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+@app.get("/api/public/dashboard")
+def public_dashboard(_=Depends(verify_api_key_header)):
+    """Dashboard istatistikleri — Sköll ve diğer botlar için."""
+    conn = db()
+    total_players = conn.execute("SELECT COUNT(*) FROM players WHERE removed_at IS NULL").fetchone()[0]
+    vip_count     = conn.execute("SELECT COUNT(*) FROM players WHERE is_vip=1 AND removed_at IS NULL").fetchone()[0]
+    total_codes   = conn.execute("SELECT COUNT(DISTINCT code) FROM active_codes").fetchone()[0]
+    success       = conn.execute("SELECT COUNT(*) FROM redemptions WHERE status='SUCCESS'").fetchone()[0]
+    already_used  = conn.execute("SELECT COUNT(*) FROM redemptions WHERE status='ALREADY_USED'").fetchone()[0]
+    failed        = conn.execute("SELECT COUNT(*) FROM redemptions WHERE status='FAILED'").fetchone()[0]
+    conn.close()
+    return {
+        "total_players": total_players,
+        "vip_count":     vip_count,
+        "total_codes":   total_codes,
+        "success":       success,
+        "already_used":  already_used,
+        "failed":        failed,
+    }
 
 # ── Serve frontend ────────────────────────────────────────
 INDEX_HTML = "/app/web/dist/index.html"

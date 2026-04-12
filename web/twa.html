@@ -123,7 +123,7 @@
 <script>
 const tg=window.Telegram?.WebApp;
 if(tg){tg.ready();tg.expand();}
-const API='';
+const API='https://gift.ks-wolfpack.com';
 let tok=localStorage.getItem('wlf_tok')||'';
 async function req(path,opts={}){
   const h={...(opts.headers||{})};

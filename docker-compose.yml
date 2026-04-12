@@ -1,6 +1,7 @@
 version: "3.8"
 services:
   daemon:
+    build: .
     image: kingshot-daemon
     container_name: kingshot-daemon
     restart: unless-stopped
@@ -8,7 +9,6 @@ services:
       - ./data:/app/data
       - /var/run/docker.sock:/var/run/docker.sock
       - /usr/bin/chromium:/usr/bin/chromium:ro
-      - /usr/bin/chromedriver:/usr/bin/chromedriver:ro
       - /usr/lib/chromium:/usr/lib/chromium:ro
       - /etc/chromium.d:/etc/chromium.d:ro
       - /usr/lib/aarch64-linux-gnu:/usr/lib/aarch64-linux-gnu:ro
@@ -27,6 +27,9 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    networks:
+      - default
+      - proxy
     volumes:
       - ./data:/app/data
       - /var/run/docker.sock:/var/run/docker.sock
@@ -38,8 +41,14 @@ services:
       - JWT_SECRET=${JWT_SECRET:-change-this-secret}
       - ADMIN_USER=${ADMIN_USER:-admin}
       - ADMIN_PASS=${ADMIN_PASS:-kingshot123}
-      - COMPOSE_DIR=/home/selman/kingshot
+      - COMPOSE_DIR=${COMPOSE_DIR:-/home/selman/kingshot}
+      - REBUILD_SERVER_URL=${REBUILD_SERVER_URL}
+      - DOCKER_TCP_URL=${DOCKER_TCP_URL}
       - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
     depends_on:
       - daemon
+
+networks:
+  proxy:
+    external: true
