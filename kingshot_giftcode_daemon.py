@@ -2,19 +2,17 @@
 WLF Rewardwolf — Gift Code Daemon v2.1.0
 ============================================
 - Monitors Kingshot API for new gift codes
-- Fetches player list from Google Sheets
-- Redeems codes for all players via Selenium (spread over 24h, random intervals)
-- Optimized SQLite database with bulk lookups
-- Player sync every 5 minutes (add new, soft-delete removed)
-- VIP player list (processed first)
+- Redeems codes for all players via Playwright/Chromium (randomized intervals)
+- Players managed via web dashboard (no Google Sheets dependency)
+- VIP player priority processing
+- Optimized SQLite database with WAL mode and bulk lookups
 - Telegram bot with instant command responses (separate thread)
 - RAM/CPU/temperature monitoring with alerts
-- Chromium fingerprint randomization
+- Browser fingerprint randomization (user-agent, viewport, language)
 - Retry mechanism for failed redemptions
-- Chromium crash recovery
-- 72-hour expiry warnings with undelivered player list
+- Browser crash recovery with auto-restart
+- 72-hour expiry warnings
 - Daily summary report
-- New player auto-detection
 """
 
 import os
@@ -822,7 +820,7 @@ def _attempt_redeem(page, player_id, gift_code):
         try:
             page.goto(
                 "https://ks-giftcode.centurygame.com/",
-                wait_until="networkidle",
+                wait_until="domcontentloaded",
                 timeout=45000,
             )
         except Exception as e:
@@ -830,7 +828,7 @@ def _attempt_redeem(page, player_id, gift_code):
             time.sleep(5)
             continue
         try:
-            # networkidle sonrası Vue DOM'u render eder; 15s yeterli
+            # domcontentloaded sonrası Vue DOM'u render eder; 15s yeterli
             page.wait_for_selector('input[placeholder="Player ID"]', timeout=15000)
             log.info(f"Page loaded OK on attempt {page_try+1}")
             break
@@ -885,15 +883,12 @@ def _attempt_redeem(page, player_id, gift_code):
 
     # Exchange butonunun disabled class'ının kalkmasını bekle (max 15s)
     try:
-        for _ in range(30):
-            btn_class = page.locator('div.exchange_btn').get_attribute("class", timeout=1000) or ""
-            if "disabled" not in btn_class:
-                break
-            time.sleep(0.5)
-        else:
-            log.debug("Exchange button still disabled after 15s")
+        page.wait_for_function(
+            "!document.querySelector('div.exchange_btn')?.className.includes('disabled')",
+            timeout=15000,
+        )
     except Exception as e:
-        log.debug(f"Exchange button check error: {e}")
+        log.debug(f"Exchange button wait error: {e}")
 
     # Confirm butonuna tıkla
     try:
@@ -972,11 +967,6 @@ def redeem_code_for_player(browser, player_id, username, gift_code, retry_count=
             if status == "SERVER_BUSY":
                 wait_sec = 120 * attempt  # 2dk, 4dk, 6dk
                 log.warning(f"  ⏳ Server busy for {player_id} ({username}) — waiting {wait_sec}s before retry ({attempt}/{max_attempts})")
-                send_telegram(
-                    f"⏳ <b>Server Busy</b>\n"
-                    f"Player: {username} (<code>{player_id}</code>)\n"
-                    f"Retry {attempt}/{max_attempts} in {wait_sec}s"
-                )
                 ctx.close()
                 ctx = None
                 time.sleep(wait_sec)
@@ -1069,6 +1059,7 @@ def redeem_code_for_all(gift_code):
     processed = 0
     pw = None
     browser = None
+    code_expires_at = get_code_expiry(gift_code)  # cached once — avoid per-player DB hit
 
     # Browser is started once for the entire distribution run
     try:
@@ -1113,7 +1104,7 @@ def redeem_code_for_all(gift_code):
         vip_tag   = " ⭐" if is_vip else ""
         role_tag  = f" [{role}]" if role != "R1" else ""
 
-        if is_code_expired(gift_code):
+        if code_expires_at and datetime.now(timezone.utc) >= code_expires_at:
             log.warning(f"⏰ Code {gift_code} has expired (UTC). Stopping distribution.")
             send_telegram(
                 f"⏰ <b>Code Expired!</b>\n"
@@ -1145,17 +1136,13 @@ def redeem_code_for_all(gift_code):
             log.info(f"  {status_icon} {status}: {result['message']}")
 
             tg_extra = f"\n🔄 Will retry in {CONFIG['RETRY_DELAY_HOURS']} hours" if status == "FAILED" else ""
-            conn = db_connect()
-            db_success      = conn.execute("SELECT COUNT(*) FROM redemptions WHERE code=? AND status='SUCCESS'",      (gift_code,)).fetchone()[0]
-            db_already_used = conn.execute("SELECT COUNT(*) FROM redemptions WHERE code=? AND status='ALREADY_USED'", (gift_code,)).fetchone()[0]
-            db_failed       = conn.execute("SELECT COUNT(*) FROM redemptions WHERE code=? AND status='FAILED'",       (gift_code,)).fetchone()[0]
-            conn.close()
+            delivered = _dist_state["success"] + _dist_state["already_used"]
             send_telegram(
                 f"{status_icon} <b>[{processed}/{total}] {username or player_id}{vip_tag}</b>\n"
                 f"Code: <code>{gift_code}</code>\n"
                 f"Status: {status}\n"
                 f"Message: {result['message']}\n"
-                f"✅ {db_success + db_already_used} | ❌ {db_failed}"
+                f"✅ {delivered} | ❌ {_dist_state['failed']}"
                 f"{tg_extra}"
             )
 
@@ -1621,7 +1608,7 @@ def main():
 
     init_db()
 
-    log.info("🚀 WLF Rewardwolf Daemon v2.0.2 started.")
+    log.info("🚀 WLF Rewardwolf Daemon v2.1.0 started.")
     log.info(f"   Check interval: {CONFIG['CHECK_INTERVAL_MIN']} minutes")
     log.info(f"   Retry delay: {CONFIG['RETRY_DELAY_HOURS']} hours")
     log.info(f"   Expiry warning: {CONFIG['EXPIRY_WARNING_HOURS']} hours before")
