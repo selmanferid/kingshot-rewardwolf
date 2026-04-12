@@ -90,10 +90,15 @@ def init_api_keys_table():
         CREATE TABLE IF NOT EXISTS api_keys (
             key         TEXT PRIMARY KEY,
             name        TEXT NOT NULL,
+            description TEXT,
             created_at  TEXT NOT NULL,
             last_used   TEXT
         )
     """)
+    # Migrate: add description column if missing
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(api_keys)").fetchall()]
+    if "description" not in cols:
+        conn.execute("ALTER TABLE api_keys ADD COLUMN description TEXT")
     conn.commit()
     conn.close()
 
@@ -673,6 +678,7 @@ def health(_=Depends(verify_token)):
 # ── API Key Management ────────────────────────────────────
 class ApiKeyCreate(BaseModel):
     name: str
+    description: Optional[str] = None
 
 @app.on_event("startup")
 async def startup():
@@ -681,7 +687,9 @@ async def startup():
 @app.get("/api/apikeys")
 def list_api_keys(_=Depends(verify_token)):
     conn = db()
-    rows = conn.execute("SELECT key, name, created_at, last_used FROM api_keys ORDER BY created_at DESC").fetchall()
+    rows = conn.execute(
+        "SELECT key, name, description, created_at, last_used FROM api_keys ORDER BY created_at DESC"
+    ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
@@ -689,11 +697,13 @@ def list_api_keys(_=Depends(verify_token)):
 def create_api_key(body: ApiKeyCreate, _=Depends(verify_token)):
     key = "rwf_" + secrets.token_urlsafe(32)
     conn = db()
-    conn.execute("INSERT INTO api_keys (key, name, created_at) VALUES (?, ?, ?)",
-                 (key, body.name, datetime.now(timezone.utc).isoformat()))
+    conn.execute(
+        "INSERT INTO api_keys (key, name, description, created_at) VALUES (?, ?, ?, ?)",
+        (key, body.name, body.description, datetime.now(timezone.utc).isoformat())
+    )
     conn.commit()
     conn.close()
-    return {"key": key, "name": body.name}
+    return {"key": key, "name": body.name, "description": body.description}
 
 @app.delete("/api/apikeys/{key}")
 def delete_api_key(key: str, _=Depends(verify_token)):
@@ -706,40 +716,94 @@ def delete_api_key(key: str, _=Depends(verify_token)):
 # ── Public API (API Key ile) ───────────────────────────────
 @app.get("/api/public/codes")
 def public_codes(_=Depends(verify_api_key_header)):
-    """Aktif gift code listesi — Sköll ve diğer botlar için."""
+    """Tüm gift code listesi ve istatistikleri."""
     conn = db()
     rows = conn.execute("""
         SELECT ac.code, ac.created_at, ac.expires_at, ac.is_currently_active, ac.is_completed,
-               COALESCE(SUM(CASE WHEN r.status='SUCCESS' THEN 1 ELSE 0 END), 0) as success,
+               ac.player_count as total_players,
+               COALESCE(SUM(CASE WHEN r.status='SUCCESS'      THEN 1 ELSE 0 END), 0) as success,
                COALESCE(SUM(CASE WHEN r.status='ALREADY_USED' THEN 1 ELSE 0 END), 0) as already_used,
-               COALESCE(SUM(CASE WHEN r.status='FAILED' THEN 1 ELSE 0 END), 0) as failed
+               COALESCE(SUM(CASE WHEN r.status='FAILED'       THEN 1 ELSE 0 END), 0) as failed
         FROM active_codes ac
         LEFT JOIN redemptions r ON r.code = ac.code
         GROUP BY ac.code
         ORDER BY ac.is_currently_active DESC, ac.created_at DESC
     """).fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    result = []
+    for r in rows:
+        row = dict(r)
+        row["delivered"] = row["success"] + row["already_used"]
+        result.append(row)
+    return result
+
+@app.get("/api/public/codes/{code}")
+def public_code_detail(code: str, _=Depends(verify_api_key_header)):
+    """Tek bir gift code'un detayı."""
+    conn = db()
+    row = conn.execute("""
+        SELECT ac.code, ac.created_at, ac.expires_at, ac.is_currently_active, ac.is_completed,
+               ac.player_count as total_players,
+               COALESCE(SUM(CASE WHEN r.status='SUCCESS'      THEN 1 ELSE 0 END), 0) as success,
+               COALESCE(SUM(CASE WHEN r.status='ALREADY_USED' THEN 1 ELSE 0 END), 0) as already_used,
+               COALESCE(SUM(CASE WHEN r.status='FAILED'       THEN 1 ELSE 0 END), 0) as failed
+        FROM active_codes ac
+        LEFT JOIN redemptions r ON r.code = ac.code
+        WHERE ac.code = ?
+        GROUP BY ac.code
+    """, (code,)).fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Code not found")
+    result = dict(row)
+    result["delivered"] = result["success"] + result["already_used"]
+    return result
+
+@app.get("/api/public/player/{player_id}")
+def public_player_status(player_id: str, _=Depends(verify_api_key_header)):
+    """Bir oyuncunun tüm kodlardaki redemption durumu."""
+    conn = db()
+    player = conn.execute(
+        "SELECT player_id, username, is_vip, role FROM players WHERE player_id=? AND removed_at IS NULL",
+        (player_id,)
+    ).fetchone()
+    if not player:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Player not found")
+    redemptions = conn.execute("""
+        SELECT r.code, r.status, r.message, r.timestamp
+        FROM redemptions r
+        WHERE r.player_id = ?
+        ORDER BY r.timestamp DESC
+    """, (player_id,)).fetchall()
+    conn.close()
+    return {
+        "player_id": player["player_id"],
+        "username":  player["username"],
+        "is_vip":    bool(player["is_vip"]),
+        "role":      player["role"],
+        "redemptions": [dict(r) for r in redemptions],
+    }
 
 @app.get("/api/public/dashboard")
 def public_dashboard(_=Depends(verify_api_key_header)):
-    """Dashboard istatistikleri — Sköll ve diğer botlar için."""
+    """Genel istatistikler."""
     conn = db()
-    total_players = conn.execute("SELECT COUNT(*) FROM players WHERE removed_at IS NULL").fetchone()[0]
-    vip_count     = conn.execute("SELECT COUNT(*) FROM players WHERE is_vip=1 AND removed_at IS NULL").fetchone()[0]
-    total_codes   = conn.execute("SELECT COUNT(DISTINCT code) FROM active_codes").fetchone()[0]
-    success       = conn.execute("SELECT COUNT(*) FROM redemptions WHERE status='SUCCESS'").fetchone()[0]
-    already_used  = conn.execute("SELECT COUNT(*) FROM redemptions WHERE status='ALREADY_USED'").fetchone()[0]
-    failed        = conn.execute("SELECT COUNT(*) FROM redemptions WHERE status='FAILED'").fetchone()[0]
+    row = conn.execute("""
+        SELECT
+            (SELECT COUNT(*) FROM players WHERE removed_at IS NULL)        AS total_players,
+            (SELECT COUNT(*) FROM players WHERE is_vip=1 AND removed_at IS NULL) AS vip_count,
+            (SELECT COUNT(DISTINCT code) FROM active_codes)                AS total_codes,
+            (SELECT COUNT(*) FROM active_codes WHERE is_currently_active=1) AS active_codes,
+            COALESCE(SUM(CASE WHEN r.status='SUCCESS'      THEN 1 ELSE 0 END), 0) AS success,
+            COALESCE(SUM(CASE WHEN r.status='ALREADY_USED' THEN 1 ELSE 0 END), 0) AS already_used,
+            COALESCE(SUM(CASE WHEN r.status='FAILED'       THEN 1 ELSE 0 END), 0) AS failed
+        FROM redemptions r
+    """).fetchone()
     conn.close()
-    return {
-        "total_players": total_players,
-        "vip_count":     vip_count,
-        "total_codes":   total_codes,
-        "success":       success,
-        "already_used":  already_used,
-        "failed":        failed,
-    }
+    d = dict(row)
+    d["delivered"] = d["success"] + d["already_used"]
+    return d
 
 # ── Serve frontend ────────────────────────────────────────
 INDEX_HTML = "/app/web/dist/index.html"

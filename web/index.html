@@ -587,19 +587,111 @@ input:not([class]),select:not([class]),textarea:not([class]){
 
     <!-- ── API KEYS ── -->
     <div class="page" id="page-apikeys">
-      <div class="p-4 md:p-8">
-        <div class="mb-6 md:mb-8">
+      <div class="p-4 md:p-8 space-y-8">
+        <!-- Header -->
+        <div>
           <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out/60 mb-1">System</p>
           <h1 class="font-head font-black text-2xl md:text-4xl tracking-tighter text-os">API Keys</h1>
+          <p class="font-body text-sm text-out mt-2">Dışa açık endpoint'lere erişim için API anahtarları. Her istekte <code class="bg-sl1 px-1.5 py-0.5 rounded text-p font-mono text-xs">X-API-Key</code> header'ı ile gönderilmelidir.</p>
         </div>
-        <div class="flex items-center gap-4 mb-6">
-          <input type="text" id="apikey-name" placeholder="Key name (e.g. Skoll Bot)"
-            class="flex-1 max-w-sm bg-sl1 border border-white/5 focus:border-pc/40 focus:ring-0 rounded-lg px-4 py-3 font-mono text-sm text-os placeholder:text-out/40 outline-none transition-colors"/>
-          <button onclick="createApiKey()" class="flex items-center gap-2 bg-pc text-pc-on font-head font-bold rounded-lg px-5 py-3 text-sm uppercase hover:brightness-110 active:scale-[.98] transition-all sp">
-            <span class="material-symbols-outlined text-sm">add</span>Create Key
-          </button>
+
+        <!-- Create Key -->
+        <div class="bg-sl1 border border-white/5 rounded-xl p-5">
+          <h2 class="font-head font-bold text-sm uppercase tracking-wider text-out mb-4">Yeni Anahtar Oluştur</h2>
+          <div class="flex flex-col sm:flex-row gap-3">
+            <input type="text" id="apikey-name" placeholder="İsim (örn. Sköll Bot)"
+              class="flex-1 bg-sl0 border border-white/5 focus:border-pc/40 rounded-lg px-4 py-2.5 font-mono text-sm text-os placeholder:text-out/40 outline-none transition-colors"/>
+            <input type="text" id="apikey-desc" placeholder="Açıklama (isteğe bağlı)"
+              class="flex-1 bg-sl0 border border-white/5 focus:border-pc/40 rounded-lg px-4 py-2.5 font-mono text-sm text-os placeholder:text-out/40 outline-none transition-colors"/>
+            <button onclick="createApiKey()" class="flex items-center gap-2 bg-pc text-pc-on font-head font-bold rounded-lg px-5 py-2.5 text-sm uppercase hover:brightness-110 active:scale-[.98] transition-all sp whitespace-nowrap">
+              <span class="material-symbols-outlined text-sm">add</span>Oluştur
+            </button>
+          </div>
         </div>
-        <div id="apikeys-list" class="space-y-3"></div>
+
+        <!-- Keys List -->
+        <div>
+          <h2 class="font-head font-bold text-sm uppercase tracking-wider text-out mb-3">Aktif Anahtarlar</h2>
+          <div id="apikeys-list" class="space-y-3"></div>
+        </div>
+
+        <!-- Endpoint Reference -->
+        <div>
+          <h2 class="font-head font-bold text-sm uppercase tracking-wider text-out mb-3">Public Endpoint Referansı</h2>
+          <div class="space-y-3">
+            <!-- Dashboard -->
+            <div class="bg-sl1 border border-white/5 rounded-xl overflow-hidden">
+              <div class="flex items-center gap-3 px-5 py-3 border-b border-white/5">
+                <span class="font-mono text-[11px] font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">GET</span>
+                <code class="font-mono text-sm text-p">/api/public/dashboard</code>
+                <span class="font-body text-xs text-out ml-auto">Genel istatistikler</span>
+              </div>
+              <pre class="font-mono text-[11px] text-out/80 px-5 py-3 overflow-x-auto bg-sl0/40">{
+  "total_players": 91,
+  "vip_count": 8,
+  "total_codes": 24,
+  "active_codes": 1,
+  "success": 1840,
+  "already_used": 120,
+  "delivered": 1960,
+  "failed": 14
+}</pre>
+            </div>
+            <!-- Codes -->
+            <div class="bg-sl1 border border-white/5 rounded-xl overflow-hidden">
+              <div class="flex items-center gap-3 px-5 py-3 border-b border-white/5">
+                <span class="font-mono text-[11px] font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">GET</span>
+                <code class="font-mono text-sm text-p">/api/public/codes</code>
+                <span class="font-body text-xs text-out ml-auto">Tüm kodlar ve istatistikleri</span>
+              </div>
+              <pre class="font-mono text-[11px] text-out/80 px-5 py-3 overflow-x-auto bg-sl0/40">[{
+  "code": "WEEKENDPLAN",
+  "created_at": "2026-04-08T...",
+  "expires_at": null,
+  "is_currently_active": 1,
+  "is_completed": 1,
+  "total_players": 89,
+  "success": 77,
+  "already_used": 12,
+  "delivered": 89,
+  "failed": 0
+}]</pre>
+            </div>
+            <!-- Single Code -->
+            <div class="bg-sl1 border border-white/5 rounded-xl overflow-hidden">
+              <div class="flex items-center gap-3 px-5 py-3 border-b border-white/5">
+                <span class="font-mono text-[11px] font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">GET</span>
+                <code class="font-mono text-sm text-p">/api/public/codes/<span class="text-out">{code}</span></code>
+                <span class="font-body text-xs text-out ml-auto">Tek kod detayı</span>
+              </div>
+              <pre class="font-mono text-[11px] text-out/80 px-5 py-3 overflow-x-auto bg-sl0/40">404 → { "detail": "Code not found" }
+200 → yukarıdaki liste formatının tek elemanı</pre>
+            </div>
+            <!-- Player Status -->
+            <div class="bg-sl1 border border-white/5 rounded-xl overflow-hidden">
+              <div class="flex items-center gap-3 px-5 py-3 border-b border-white/5">
+                <span class="font-mono text-[11px] font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">GET</span>
+                <code class="font-mono text-sm text-p">/api/public/player/<span class="text-out">{player_id}</span></code>
+                <span class="font-body text-xs text-out ml-auto">Oyuncunun redemption geçmişi</span>
+              </div>
+              <pre class="font-mono text-[11px] text-out/80 px-5 py-3 overflow-x-auto bg-sl0/40">{
+  "player_id": "12345678",
+  "username": "Selman",
+  "is_vip": false,
+  "role": "R3",
+  "redemptions": [
+    { "code": "WEEKENDPLAN", "status": "SUCCESS", "message": "...", "timestamp": "..." }
+  ]
+}</pre>
+            </div>
+            <!-- Usage Note -->
+            <div class="bg-sl0 border border-white/5 rounded-xl px-5 py-4">
+              <p class="font-mono text-[11px] text-out/70 mb-2 uppercase tracking-wider">Kullanım</p>
+              <pre class="font-mono text-[11px] text-os/80">curl https://gift.ks-wolfpack.com/api/public/dashboard \
+  -H "X-API-Key: rwf_..."</pre>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1191,37 +1283,80 @@ async function loadApiKeys() {
   const keys = await apiFetch('/apikeys');
   const el = document.getElementById('apikeys-list');
   if (!keys || keys.length === 0) {
-    el.innerHTML = '<div class="font-mono text-sm text-out">No API keys yet.</div>';
+    el.innerHTML = '<div class="font-mono text-sm text-out/60 bg-sl1 border border-white/5 rounded-xl px-5 py-4">Henüz API anahtarı yok.</div>';
     return;
   }
   el.innerHTML = keys.map(k => `
-    <div class="akcard">
-      <div>
-        <div class="font-head font-bold text-sm text-os mb-1">${esc(k.name)}</div>
-        <div class="font-mono text-[11px] text-p bg-sl0/60 px-2 py-1 rounded inline-block mb-1">${esc(k.key)}</div>
-        <div class="font-mono text-[10px] text-out">
-          Created: ${fmtDate(k.created_at)} ${k.last_used ? '· Last used: ' + fmtDate(k.last_used) : '· Never used'}
+    <div class="bg-sl1 border border-white/5 rounded-xl px-5 py-4 flex items-start justify-between gap-4">
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="font-head font-bold text-sm text-os">${esc(k.name)}</span>
+          ${k.last_used
+            ? '<span class="font-mono text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded">aktif</span>'
+            : '<span class="font-mono text-[10px] bg-white/5 text-out/50 px-2 py-0.5 rounded">hiç kullanılmadı</span>'}
+        </div>
+        ${k.description ? `<div class="font-body text-xs text-out/60 mb-2">${esc(k.description)}</div>` : ''}
+        <div class="flex items-center gap-2">
+          <code class="font-mono text-[11px] text-p bg-sl0 px-2.5 py-1 rounded truncate max-w-xs">${esc(k.key)}</code>
+          <button onclick="copyText('${esc(k.key)}')" class="text-out/50 hover:text-p transition-colors" title="Kopyala">
+            <span class="material-symbols-outlined text-[15px]">content_copy</span>
+          </button>
+        </div>
+        <div class="font-mono text-[10px] text-out/50 mt-1.5">
+          Oluşturuldu: ${fmtDate(k.created_at)}${k.last_used ? ' · Son kullanım: ' + fmtDate(k.last_used) : ''}
         </div>
       </div>
-      <button class="abtn abtn-danger" onclick="deleteApiKey('${esc(k.key)}','${esc(k.name)}')">Delete</button>
+      <button class="abtn abtn-danger shrink-0" onclick="deleteApiKey('${esc(k.key)}','${esc(k.name)}')">Sil</button>
     </div>`).join('');
 }
 async function createApiKey() {
   const name = document.getElementById('apikey-name').value.trim();
-  if (!name) { toast('Please enter a key name', true); return; }
-  const result = await apiFetch('/apikeys', { method:'POST', body:JSON.stringify({name}) });
+  const desc = document.getElementById('apikey-desc').value.trim();
+  if (!name) { toast('Anahtar ismi gerekli', true); return; }
+  const result = await apiFetch('/apikeys', { method:'POST', body:JSON.stringify({name, description: desc || null}) });
   if (result && result.key) {
     document.getElementById('apikey-name').value = '';
-    toast('API key created');
+    document.getElementById('apikey-desc').value = '';
     await loadApiKeys();
-    alert(`API Key Created!\n\nName: ${result.name}\nKey: ${result.key}\n\nCopy this key now — it won't be shown again.`);
+    // Show modal with copyable key
+    showNewKeyModal(result.name, result.key);
   }
 }
+function showNewKeyModal(name, key) {
+  const existing = document.getElementById('modal-newkey');
+  if (existing) existing.remove();
+  const div = document.createElement('div');
+  div.id = 'modal-newkey';
+  div.className = 'modal-overlay';
+  div.style.display = 'flex';
+  div.innerHTML = `
+    <div class="w-[480px] bg-sl1 rounded-xl overflow-hidden sp">
+      <div class="h-0.5 bg-pc"></div>
+      <div class="p-7">
+        <h2 class="font-head font-black text-xl tracking-tight mb-1">API Anahtarı Oluşturuldu</h2>
+        <p class="font-body text-sm text-out mb-5">Bu anahtar bir daha gösterilmeyecek. Hemen kopyalayın.</p>
+        <div class="mb-2 font-mono text-xs text-out/60 uppercase tracking-wider">${esc(name)}</div>
+        <div class="flex items-center gap-2 bg-sl0 border border-white/5 rounded-lg px-4 py-3">
+          <code id="newkey-val" class="font-mono text-sm text-p flex-1 break-all">${esc(key)}</code>
+          <button onclick="copyText('${esc(key)}'); toast('Kopyalandı')" class="text-out/50 hover:text-p transition-colors shrink-0">
+            <span class="material-symbols-outlined text-[18px]">content_copy</span>
+          </button>
+        </div>
+        <div class="mt-6 flex justify-end">
+          <button onclick="document.getElementById('modal-newkey').remove()" class="abtn abtn-primary">Tamam</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(div);
+}
 async function deleteApiKey(key, name) {
-  if (!confirm(`Delete API key "${name}"?`)) return;
+  if (!confirm(`"${name}" anahtarını sil?`)) return;
   await apiFetch(`/apikeys/${encodeURIComponent(key)}`, { method:'DELETE' });
-  toast('API key deleted');
+  toast('API anahtarı silindi');
   await loadApiKeys();
+}
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => toast('Kopyalandı')).catch(() => toast('Kopyalanamadı', true));
 }
 
 function codeBadge(c) {
