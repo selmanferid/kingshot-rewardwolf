@@ -9,7 +9,6 @@ Automated gift code redemption daemon for KingShot mobile game. Monitors new cod
 - **Automatic redemption** — Monitors KingShot API for new gift codes and redeems them for all players with randomized intervals
 - **Telegram bot** — Real-time notifications and control commands (`/status`, `/restart`, `/rebuild`, etc.)
 - **Web dashboard** — Full management interface at your domain
-- **Telegram Web App** — Native mobile-feel mini app accessible directly from Telegram
 - **Player management** — Players managed entirely via the web dashboard (add, remove, VIP toggle)
 - **Browser crash recovery** — Automatically restarts Chromium on crash and retries the same player
 - **Retry mechanism** — Failed redemptions are retried after 2 hours
@@ -46,7 +45,6 @@ kingshot-rewardwolf/
 └── web/
     ├── main.py                  # FastAPI backend
     ├── index.html               # Web dashboard
-    ├── twa.html                 # Telegram Web App
     ├── Dockerfile               # Web container
     └── requirements.txt         # Web dependencies
 ```
@@ -124,16 +122,6 @@ Accessible at your configured domain. Features:
 - Real-time log viewer
 - Daemon controls (start, stop, restart, rebuild)
 - Telegram message sender
-
----
-
-## Telegram Web App
-
-A mobile-optimized mini app accessible from Telegram. Configure via BotFather:
-
-1. `/mybots` → select your bot
-2. **Bot Settings** → **Menu Button** → **Configure menu button**
-3. URL: `https://your.domain.com/twa`
 
 ---
 
