@@ -108,6 +108,7 @@ docker compose up -d --build
 | `/retry` | Retry failed redemptions |
 | `/restart` | Restart daemon |
 | `/rebuild` | Rebuild Docker image |
+| `/chatid` | Show current chat's ID, type and name |
 | `/help` | Command list |
 
 ---
@@ -122,6 +123,8 @@ Accessible at your configured domain. Features:
 - Real-time log viewer
 - Daemon controls (start, stop, restart, rebuild)
 - Telegram message sender
+- **Notification Channels** — Telegram groups and Discord webhooks with per-event toggles and custom message templates
+- API key management with public REST endpoints
 
 ---
 

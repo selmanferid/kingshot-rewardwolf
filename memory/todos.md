@@ -18,3 +18,6 @@
 - [x] Rewardwolf logo added — favicon + login + sidebar/navbar
 - [x] UI rebranded: WLF GİFT PANEL, Daemon → Rewardwolf labels
 - [x] TWA (Telegram Web App) removed completely
+- [x] New-code spam fix: notified column, one-time Telegram alert per code
+- [x] Notification Channels: Telegram + Discord, per-event, custom templates, UI page
+- [x] /chatid command + chat_id logging on every message

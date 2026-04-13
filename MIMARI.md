@@ -38,8 +38,10 @@ Yoğun okuma/yazma işlemi için SQLite WAL (Write-Ahead Logging) modunda çalı
 
 - `players`: Oyuncuların listesi, kayıt tarihi, soft-delete (`removed_at`) ve VIP statüleri.
 - `redemptions`: Hangi koda, hangi oyuncuya ne zaman gönderim yapıldığının ve sonucun (SUCCESS, ALREADY_USED, FAILED vb.) kaydı.
-- `active_codes`: Sisteme düşmüş kodlar, bitiş süreleri ve gönderim istatistikleri.
+- `active_codes`: Sisteme düşmüş kodlar, bitiş süreleri, gönderim istatistikleri ve `notified` bayrağı.
 - `expiry_warnings`: Bitmek üzere olan kodlar için atılmış uyarı mesajlarının kaydı.
+- `notification_channels`: Telegram grupları ve Discord webhook'larının tanımları, event toggle'ları ve özel şablonları.
+- `api_keys`: Dışa açık API endpoint'leri için erişim anahtarları.
 
 ## 3. Redemption Durum Modeli
 
@@ -57,14 +59,16 @@ Her oyuncu-kod çifti için aşağıdaki durumlardan biri kaydedilir:
 
 ## 4. Akış Diyagramı
 
-1. **Kod Kontrolü:** `Daemon` → `KingShot API` → Yeni kod bulunursa `active_codes` tablosuna eklenir.
+1. **Kod Kontrolü:** `Daemon` → `KingShot API` → Yeni kod bulunursa `active_codes` tablosuna eklenir. `notified=0` ise Telegram + notification channels'a bildirim gönderilir ve `notified=1` set edilir (spam önleme).
 2. **Redeem Süreci:** `Daemon` → `Playwright (host Chromium)` → `https://ks-giftcode.centurygame.com/` → Yanıt parse edilir → Veritabanına kaydedilir.
 3. **Retry:** `FAILED` statüsündeki kayıtlar, `RETRY_DELAY_HOURS` (varsayılan 2 saat) sonra tekrar denenir.
-4. **İzleme:** `Web Dashboard` veya `Telegram Bot` → O anki ilerleme ve istatistikler veritabanından okunur.
+4. **Bildirim:** Dağıtım tamamlanınca, kod sona ermeden 72 saat önce ve her gece `send_to_channels()` ile tüm aktif kanallara ilgili event mesajı gönderilir.
+5. **İzleme:** `Web Dashboard` veya `Telegram Bot` → O anki ilerleme ve istatistikler veritabanından okunur.
 
 ## 5. Özel Optimizasyonlar
 
 - **Browser Fingerprint Rastgeleleştirme:** Her oyuncu için farklı viewport, user-agent ve dil başlığı seçilir. `navigator.webdriver` gizlenir.
 - **Host Chromium Mapping:** Playwright'ın kendi tarayıcısını indirmek yerine host (Raspberry Pi) üzerindeki Chromium binary'si Docker volume ile read-only olarak map edilir. Bu sayede Docker imaj boyutu küçük tutulur ve ARM64 uyumluluğu sağlanır.
 - **Tek Browser Instance:** Browser dağıtım süreci boyunca tek kez açılır; her oyuncu için yalnızca hafif bir `BrowserContext` oluşturulur (RAM optimizasyonu).
-- **Resource Blocking:** Gereksiz network kaynakları (image, stylesheet, font, media) Playwright route kurallarıyla engellenir.
+- **Resource Blocking:** Gereksiz network kaynakları (image, media, font) Playwright route kurallarıyla engellenir. Stylesheet engellenmez — Vue SPA input alanlarını CSS ile yönetir.
+- **Notification Channels:** `send_to_channels(event, **kwargs)` fonksiyonu tüm aktif kanalları tek sorguda çeker, Telegram veya Discord'a platform'a göre gönderim yapar. Her kanalın şablonu özelleştirilebilir; boşsa varsayılan şablon kullanılır.
