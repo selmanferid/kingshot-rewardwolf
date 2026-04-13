@@ -31,9 +31,11 @@
 - `notification_channels` table stores multi-platform channels (Telegram chat_id or Discord webhook URL)
 - Per-event flags: ev_new_code, ev_dist_complete, ev_expiry_warning, ev_daily_summary
 - Custom templates per event per channel; null = use DEFAULT_CHANNEL_TEMPLATES
-- Template variables: {code}, {delivered}, {failed}, {total}, {hours}, {players}, {success}, {already_used}, {codes}
-- Discord: HTML tags stripped before sending (plain text only)
+- Template variables: {code_fmt}, {delivered}, {failed}, {total}, {hours}, {players}, {success}, {already_used}, {codes}
+- {code_fmt}: Telegram → `<pre>CODE</pre>` (code block, one-tap copy), Discord → `` `CODE` `` (inline monospace)
+- Discord: sends markdown directly (no HTML stripping needed)
 - `send_to_channels(event, **kwargs)` called from daemon alongside main send_telegram() calls
+- Main new-code send_telegram() also uses `<pre>` block for copyable code
 
 ## New Code Spam Prevention
 - `notified` column on `active_codes` (INTEGER DEFAULT 0)

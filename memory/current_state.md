@@ -21,6 +21,7 @@
 - New-code spam fix: `notified` column on active_codes — Telegram alert sent only once per code
 - Notification Channels system: multi-platform (Telegram + Discord), per-event toggles, custom templates
 - `/chatid` bot command added; every incoming message logs chat_id to daemon log
+- Gift codes now copyable in Telegram (`<pre>` block) and Discord (backtick) notifications
 
 ## Public API Endpoints (X-API-Key header required)
 - `GET /api/public/dashboard` — overall stats (delivered = success + already_used)
