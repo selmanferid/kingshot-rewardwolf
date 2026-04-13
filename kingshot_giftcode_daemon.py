@@ -135,10 +135,79 @@ DEFAULT_CHANNEL_TEMPLATES = {
     "daily_summary":  "📅 Daily Summary\n👥 Players: {players}\n✅ Delivered: {delivered}\n❌ Failed: {failed}",
 }
 
-def _send_discord(webhook_url: str, message: str):
-    """Discord webhook'a markdown formatında gönder."""
+# Discord events that should ping @everyone
+DISCORD_EVERYONE_EVENTS = {"new_code", "expiry_warning"}
+
+def _build_discord_embed(event: str, **kwargs) -> dict:
+    """Event türüne göre Discord embed payload'u oluşturur."""
+    code     = kwargs.get("code", "")
+    code_fmt = f"```\n{code}\n```" if code else ""
+
+    if event == "new_code":
+        expires_val = kwargs.get("expires", "No expiry")
+        return {
+            "embeds": [{
+                "title": "🎁 New Gift Code Available!",
+                "color": 16766720,  # gold
+                "fields": [
+                    {"name": "Code",    "value": code_fmt,                        "inline": False},
+                    {"name": "Expires", "value": str(expires_val),                "inline": True},
+                    {"name": "Status",  "value": "🔄 Distribution in progress...", "inline": True},
+                ],
+                "footer": {"text": "WLF Bot • Powered by Rewardwolf"},
+            }]
+        }
+
+    if event == "dist_complete":
+        return {
+            "embeds": [{
+                "title": "✅ Distribution Complete!",
+                "color": 5763719,  # green
+                "fields": [
+                    {"name": "Code",      "value": code_fmt,                      "inline": False},
+                    {"name": "✅ Delivered", "value": str(kwargs.get("delivered", 0)), "inline": True},
+                    {"name": "❌ Failed",    "value": str(kwargs.get("failed", 0)),    "inline": True},
+                    {"name": "👥 Total",     "value": str(kwargs.get("total", 0)),     "inline": True},
+                ],
+                "footer": {"text": "WLF Bot • Powered by Rewardwolf"},
+            }]
+        }
+
+    if event == "expiry_warning":
+        return {
+            "embeds": [{
+                "title": "⏰ Gift Code Expiring Soon!",
+                "color": 15548997,  # red
+                "fields": [
+                    {"name": "Code",        "value": code_fmt,                                              "inline": False},
+                    {"name": "⏱ Remaining", "value": f"{kwargs.get('hours', '?')}h",                       "inline": True},
+                    {"name": "📊 Delivered", "value": f"{kwargs.get('delivered', 0)}/{kwargs.get('total', 0)}", "inline": True},
+                ],
+                "footer": {"text": "WLF Bot • Powered by Rewardwolf"},
+            }]
+        }
+
+    if event == "daily_summary":
+        return {
+            "embeds": [{
+                "title": "📅 Daily Summary",
+                "color": 5793266,  # blue
+                "fields": [
+                    {"name": "👥 Players",    "value": str(kwargs.get("players", 0)),   "inline": True},
+                    {"name": "✅ Delivered",  "value": str(kwargs.get("delivered", 0)), "inline": True},
+                    {"name": "❌ Failed",     "value": str(kwargs.get("failed", 0)),    "inline": True},
+                ],
+                "footer": {"text": "WLF Bot • Powered by Rewardwolf"},
+            }]
+        }
+
+    # Bilinmeyen event — fallback plain text
+    return {"content": f"[{event}] " + " ".join(f"{k}={v}" for k, v in kwargs.items())}
+
+def _send_discord(webhook_url: str, payload: dict):
+    """Discord webhook'a embed payload gönderir."""
     try:
-        requests.post(webhook_url, json={"content": message}, timeout=10)
+        requests.post(webhook_url, json=payload, timeout=10)
     except Exception as e:
         log.warning(f"Discord send error: {e}")
 
@@ -161,31 +230,26 @@ def send_to_channels(event: str, **kwargs):
     default_tpl = DEFAULT_CHANNEL_TEMPLATES.get(event, "")
     for row in rows:
         platform = row["platform"]
-        tpl = row["template"] or default_tpl
 
-        # Platform'a özgü kopyalanabilir kod formatını kwargs'a ekle
-        code = kwargs.get("code", "")
-        platform_kwargs = dict(kwargs)
-        if platform == "telegram":
-            platform_kwargs["code_fmt"] = f"<pre>{code}</pre>"
-        elif platform == "discord":
-            platform_kwargs["code_fmt"] = f"`{code}`"
-        else:
-            platform_kwargs["code_fmt"] = code
+        if platform == "discord":
+            payload = _build_discord_embed(event, **kwargs)
+            if event in DISCORD_EVERYONE_EVENTS:
+                payload["content"] = "@everyone"
+            _send_discord(row["target"], payload)
 
-        try:
-            message = tpl.format(**platform_kwargs)
-        except (KeyError, ValueError) as e:
-            log.warning(f"Channel template error [{event}]: {e} — using default")
+        elif platform == "telegram":
+            tpl = row["template"] or default_tpl
+            platform_kwargs = dict(kwargs)
+            platform_kwargs["code_fmt"] = f"<pre>{kwargs.get('code', '')}</pre>"
             try:
-                message = default_tpl.format(**platform_kwargs)
-            except Exception:
-                continue
-
-        if platform == "telegram":
+                message = tpl.format(**platform_kwargs)
+            except (KeyError, ValueError) as e:
+                log.warning(f"Channel template error [{event}]: {e} — using default")
+                try:
+                    message = default_tpl.format(**platform_kwargs)
+                except Exception:
+                    continue
             send_telegram(message, row["target"])
-        elif platform == "discord":
-            _send_discord(row["target"], message)
 
 def get_telegram_updates():
     global _telegram_offset

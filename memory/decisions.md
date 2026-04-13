@@ -31,11 +31,16 @@
 - `notification_channels` table stores multi-platform channels (Telegram chat_id or Discord webhook URL)
 - Per-event flags: ev_new_code, ev_dist_complete, ev_expiry_warning, ev_daily_summary
 - Custom templates per event per channel; null = use DEFAULT_CHANNEL_TEMPLATES
-- Template variables: {code_fmt}, {delivered}, {failed}, {total}, {hours}, {players}, {success}, {already_used}, {codes}
-- {code_fmt}: Telegram → `<pre>CODE</pre>` (code block, one-tap copy), Discord → `` `CODE` `` (inline monospace)
-- Discord: sends markdown directly (no HTML stripping needed)
-- `send_to_channels(event, **kwargs)` called from daemon alongside main send_telegram() calls
-- Main new-code send_telegram() also uses `<pre>` block for copyable code
+- Template variables (Telegram only): {code_fmt}, {delivered}, {failed}, {total}, {hours}, {players}, {success}, {already_used}
+- {code_fmt}: Telegram → `<pre>CODE</pre>` (code block, one-tap copy)
+- Discord: uses `_build_discord_embed(event, **kwargs)` — structured embed per event type, NO string templates
+  - new_code: gold embed, Code / Expires / Status fields + @everyone
+  - dist_complete: green embed, Code / Delivered / Failed / Total fields
+  - expiry_warning: red embed, Code / Remaining / Delivered fields + @everyone
+  - daily_summary: blue embed, Players / Delivered / Failed fields
+- `DISCORD_EVERYONE_EVENTS = {"new_code", "expiry_warning"}` — these add content: "@everyone"
+- `send_to_channels(event, **kwargs)` routes Discord → embed, Telegram → string template
+- Main new-code send_telegram() uses `<pre>CODE</pre>` block for one-tap copy
 
 ## New Code Spam Prevention
 - `notified` column on `active_codes` (INTEGER DEFAULT 0)
