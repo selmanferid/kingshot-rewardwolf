@@ -1483,7 +1483,7 @@ function openChannelModal(ch = null) {
   document.getElementById('ch-tpl-expiry').value = ch?.tpl_expiry_warning|| '';
   document.getElementById('ch-tpl-daily').value  = ch?.tpl_daily_summary || '';
   updateChannelTargetLabel();
-  document.getElementById('modal-channel').classList.add('active');
+  document.getElementById('modal-channel').classList.add('open');
 }
 
 function updateChannelTargetLabel() {
