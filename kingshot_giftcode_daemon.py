@@ -127,7 +127,7 @@ def send_telegram(message, chat_id=None):
 
 # ── Notification Channels ────────────────────────────────────
 # {code_fmt} → platform'a göre kopyalanabilir kod formatı
-# Telegram: <code>WEEKENDPLAN</code>  |  Discord: `WEEKENDPLAN`
+# Telegram: <pre>WEEKENDPLAN</pre>  |  Discord: `WEEKENDPLAN`
 DEFAULT_CHANNEL_TEMPLATES = {
     "new_code":       "🎉 New Gift Code Found!\n🎁 Code: {code_fmt}\n🔄 Queued for distribution...",
     "dist_complete":  "✅ Distribution Complete!\n🎁 Code: {code_fmt}\n\n✅ Delivered: {delivered}\n❌ Failed: {failed}\n👥 Total: {total}",
@@ -167,7 +167,7 @@ def send_to_channels(event: str, **kwargs):
         code = kwargs.get("code", "")
         platform_kwargs = dict(kwargs)
         if platform == "telegram":
-            platform_kwargs["code_fmt"] = f"<code>{code}</code>"
+            platform_kwargs["code_fmt"] = f"<pre>{code}</pre>"
         elif platform == "discord":
             platform_kwargs["code_fmt"] = f"`{code}`"
         else:
@@ -1853,8 +1853,8 @@ def main():
                     if row_notified and not row_notified["notified"]:
                         send_telegram(
                             f"🎉 <b>New Gift Code Found!</b>\n"
-                            f"Code: <code>{code}</code>\n"
-                            f"Queued for distribution..."
+                            f"<pre>{code}</pre>"
+                            f"🔄 Queued for distribution..."
                         )
                         send_to_channels("new_code", code=code)
                         conn.execute("UPDATE active_codes SET notified=1 WHERE code=?", (code,))
