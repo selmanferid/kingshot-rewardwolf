@@ -1534,7 +1534,16 @@ def telegram_command_loop():
             for update in updates:
                 msg = update.get("message", {})
                 text = msg.get("text", "").strip()
-                chat_id = str(msg.get("chat", {}).get("id", ""))
+                chat = msg.get("chat", {})
+                chat_id   = str(chat.get("id", ""))
+                chat_type = chat.get("type", "unknown")
+                chat_name = chat.get("title") or chat.get("username") or chat.get("first_name") or "?"
+                from_user = msg.get("from", {})
+                from_name = from_user.get("username") or from_user.get("first_name") or "?"
+
+                # Her mesajda chat info'yu logla (Chat ID almayı kolaylaştırır)
+                log.info(f"💬 Message from [{chat_type}] '{chat_name}' | chat_id={chat_id} | user=@{from_name} | text={text[:60]!r}")
+
                 if not text.startswith("/"):
                     continue
 
@@ -1683,6 +1692,15 @@ def telegram_command_loop():
                     else:
                         send_telegram("ℹ️ No active distribution.", chat_id)
 
+                elif cmd == "/chatid":
+                    send_telegram(
+                        f"🆔 <b>Chat Info</b>\n\n"
+                        f"Chat ID: <code>{chat_id}</code>\n"
+                        f"Type: {chat_type}\n"
+                        f"Name: {chat_name}",
+                        chat_id
+                    )
+
                 elif cmd == "/help":
                     send_telegram(
                         "🤖 <b>Available Commands:</b>\n\n"
@@ -1696,6 +1714,7 @@ def telegram_command_loop():
                         "/retry — retry failed players\n"
                         "/restart — restart the daemon\n"
                         "/rebuild — rebuild docker image\n"
+                        "/chatid — show this chat's ID\n"
                         "/help — show this message",
                         chat_id
                     )
