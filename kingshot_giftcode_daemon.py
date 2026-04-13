@@ -129,7 +129,7 @@ def send_telegram(message, chat_id=None):
 # {code_fmt} → platform'a göre kopyalanabilir kod formatı
 # Telegram: <pre>WEEKENDPLAN</pre>  |  Discord: `WEEKENDPLAN`
 DEFAULT_CHANNEL_TEMPLATES = {
-    "new_code":       "🎉 New Gift Code Found!\n{code_fmt}",
+    "new_code":       "🎉 New Gift Code Found!\n{code_fmt}\n🔄 Queued for distribution...",
     "dist_complete":  "✅ Distribution Complete!\n🎁 Code: {code_fmt}\n\n✅ Delivered: {delivered}\n❌ Failed: {failed}\n👥 Total: {total}",
     "expiry_warning": "⏰ Gift Code Expiring!\n🎁 Code: {code_fmt}\n⏱ {hours}h remaining\n📊 {delivered}/{total} delivered",
     "daily_summary":  "📅 Daily Summary\n👥 Players: {players}\n✅ Delivered: {delivered}\n❌ Failed: {failed}",
@@ -1854,6 +1854,7 @@ def main():
                         send_telegram(
                             f"🎉 <b>New Gift Code Found!</b>\n"
                             f"<pre>{code}</pre>"
+                            f"🔄 Queued for distribution..."
                         )
                         send_to_channels("new_code", code=code)
                         conn.execute("UPDATE active_codes SET notified=1 WHERE code=?", (code,))
