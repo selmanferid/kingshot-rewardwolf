@@ -125,6 +125,54 @@ def send_telegram(message, chat_id=None):
     except Exception as e:
         log.warning(f"Telegram send error: {e}")
 
+# ── Notification Channels ────────────────────────────────────
+DEFAULT_CHANNEL_TEMPLATES = {
+    "new_code":       "🎉 New Gift Code Found!\n🎁 Code: {code}\n🔄 Queued for distribution...",
+    "dist_complete":  "✅ Distribution Complete!\n🎁 Code: {code}\n\n✅ Delivered: {delivered}\n❌ Failed: {failed}\n👥 Total: {total}",
+    "expiry_warning": "⏰ Gift Code Expiring!\n🎁 Code: {code}\n⏱ {hours}h remaining\n📊 {delivered}/{total} delivered",
+    "daily_summary":  "📅 Daily Summary\n👥 Players: {players}\n✅ Delivered: {delivered}\n❌ Failed: {failed}",
+}
+
+def _send_discord(webhook_url: str, message: str):
+    """Discord webhook'a düz metin olarak gönder (HTML tag'lerini temizle)."""
+    try:
+        clean = re.sub(r'<[^>]+>', '', message)
+        requests.post(webhook_url, json={"content": clean}, timeout=10)
+    except Exception as e:
+        log.warning(f"Discord send error: {e}")
+
+def send_to_channels(event: str, **kwargs):
+    """Tüm aktif notification channel'larına event mesajı gönder."""
+    ev_col  = f"ev_{event}"
+    tpl_col = f"tpl_{event}"
+    try:
+        conn = db_connect()
+        rows = conn.execute(f"""
+            SELECT platform, target, {tpl_col} as template
+            FROM notification_channels
+            WHERE enabled=1 AND {ev_col}=1
+        """).fetchall()
+        conn.close()
+    except Exception as e:
+        log.warning(f"send_to_channels DB error: {e}")
+        return
+
+    default_tpl = DEFAULT_CHANNEL_TEMPLATES.get(event, "")
+    for row in rows:
+        tpl = row["template"] or default_tpl
+        try:
+            message = tpl.format(**kwargs)
+        except (KeyError, ValueError) as e:
+            log.warning(f"Channel template error [{event}]: {e} — using default")
+            try:
+                message = default_tpl.format(**kwargs)
+            except Exception:
+                continue
+        if row["platform"] == "telegram":
+            send_telegram(message, row["target"])
+        elif row["platform"] == "discord":
+            _send_discord(row["target"], message)
+
 def get_telegram_updates():
     global _telegram_offset
     if not CONFIG["TELEGRAM_TOKEN"]:
@@ -216,13 +264,42 @@ def init_db():
             player_count     INTEGER DEFAULT 0
         )
     """)
-    # Migration: mevcut DB'ye player_count ekle
-    try:
-        c.execute("ALTER TABLE active_codes ADD COLUMN player_count INTEGER DEFAULT 0")
-        conn.commit()
-        log.info("✅ 'player_count' column added to active_codes table.")
-    except sqlite3.OperationalError:
-        pass  # Kolon zaten var
+    # Migration: mevcut DB'ye player_count ve notified kolonlarını ekle
+    for col, definition in [
+        ("player_count", "INTEGER DEFAULT 0"),
+        ("notified",     "INTEGER DEFAULT 0"),
+    ]:
+        try:
+            c.execute(f"ALTER TABLE active_codes ADD COLUMN {col} {definition}")
+            conn.commit()
+            log.info(f"✅ '{col}' column added to active_codes table.")
+            if col == "notified":
+                # Mevcut (migration öncesi) tüm kodları bildirilmiş say — spam önleme
+                c.execute("UPDATE active_codes SET notified=1")
+                conn.commit()
+                log.info("✅ Existing codes marked as notified (spam prevention).")
+        except sqlite3.OperationalError:
+            pass  # Kolon zaten var
+
+    # Notification channels tablosu
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS notification_channels (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            name                TEXT NOT NULL,
+            platform            TEXT NOT NULL DEFAULT 'telegram',
+            target              TEXT NOT NULL,
+            enabled             INTEGER DEFAULT 1,
+            ev_new_code         INTEGER DEFAULT 1,
+            ev_dist_complete    INTEGER DEFAULT 1,
+            ev_expiry_warning   INTEGER DEFAULT 1,
+            ev_daily_summary    INTEGER DEFAULT 0,
+            tpl_new_code        TEXT,
+            tpl_dist_complete   TEXT,
+            tpl_expiry_warning  TEXT,
+            tpl_daily_summary   TEXT,
+            created_at          TEXT NOT NULL
+        )
+    """)
 
     c.execute("""
         CREATE TABLE IF NOT EXISTS expiry_warnings (
@@ -651,6 +728,12 @@ def check_expiry_warnings(codes_data, all_players):
                 msg += f"\n<b>Not delivered:</b>\n{player_list}"
 
             send_telegram(msg)
+            send_to_channels("expiry_warning",
+                code=code,
+                hours=hours_left,
+                delivered=len(delivered_ids),
+                total=len(all_players),
+            )
             save_warning(code)
 
 # ============================================================
@@ -1211,6 +1294,14 @@ def redeem_code_for_all(gift_code):
         f"❌ Failed: {failed}\n"
         f"👥 Total processed: {processed}"
     )
+    send_to_channels("dist_complete",
+        code=gift_code,
+        delivered=success + already_used,
+        success=success,
+        already_used=already_used,
+        failed=failed,
+        total=processed,
+    )
 
     _dist_state["active"] = False
     return results
@@ -1422,6 +1513,14 @@ def send_daily_summary():
         f"❌ Failed: {failed}\n"
         f"📊 Success rate: {round(success/(success+failed)*100) if (success+failed) > 0 else 0}%\n\n"
         f"💻 CPU {health['cpu_load']}% | RAM {health['ram_percent']}% | Temp {health['temp_c']}°C"
+    )
+    send_to_channels("daily_summary",
+        players=total_players,
+        delivered=success + already_used,
+        success=success,
+        already_used=already_used,
+        failed=failed,
+        codes=total_codes,
     )
 
 # ============================================================
@@ -1701,22 +1800,37 @@ def main():
                     run_expiry_check=not _is_first_run,
                     all_players=players
                 )
-                new_codes = [c for c in active_codes if not is_code_completed(c)]
 
-                if not new_codes:
-                    log.info("  ℹ️ No new codes.")
+                # Dağıtım bekleyen (tamamlanmamış) kodlar
+                incomplete = [c for c in active_codes if not is_code_completed(c)]
+                if not incomplete:
+                    log.info("  ℹ️ No pending codes.")
                 else:
-                    log.info(f"  🎉 {len(new_codes)} new/incomplete code(s): {new_codes}")
-                    for code in new_codes:
-                        # Kuyruğa zaten ekli değilse ekle
-                        queued = list(_code_queue.queue)
-                        if code not in queued:
-                            send_telegram(
-                                f"🎉 <b>New Gift Code Found!</b>\n"
-                                f"Code: <code>{code}</code>\n"
-                                f"Queued for distribution..."
-                            )
-                            _code_queue.put(code)
+                    log.info(f"  🎉 {len(incomplete)} new/incomplete code(s): {incomplete}")
+
+                for code in incomplete:
+                    queued        = list(_code_queue.queue)
+                    currently_dist = (_dist_state.get("active") and _dist_state.get("code") == code)
+
+                    # Telegram bildirimi — sadece daha önce hiç bildirilmemiş kodlar için
+                    conn = db_connect()
+                    row_notified = conn.execute(
+                        "SELECT notified FROM active_codes WHERE code=?", (code,)
+                    ).fetchone()
+                    if row_notified and not row_notified["notified"]:
+                        send_telegram(
+                            f"🎉 <b>New Gift Code Found!</b>\n"
+                            f"Code: <code>{code}</code>\n"
+                            f"Queued for distribution..."
+                        )
+                        send_to_channels("new_code", code=code)
+                        conn.execute("UPDATE active_codes SET notified=1 WHERE code=?", (code,))
+                        conn.commit()
+                    conn.close()
+
+                    # Kuyruğa ekleme — kuyrukta yoksa VE şu an dağıtılmıyorsa
+                    if code not in queued and not currently_dist:
+                        _code_queue.put(code)
 
                 check_health_alerts()
                 now = datetime.now(timezone.utc)

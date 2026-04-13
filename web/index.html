@@ -221,6 +221,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
       <div class="ni" onclick="showPage('logs')"><span class="material-symbols-outlined text-[18px] flex-shrink-0">list_alt</span><span class="ni-label">Logs</span></div>
       <div class="ni" onclick="showPage('editor')"><span class="material-symbols-outlined text-[18px] flex-shrink-0">code</span><span class="ni-label">File Editor</span></div>
       <div class="ni" onclick="showPage('settings')"><span class="material-symbols-outlined text-[18px] flex-shrink-0">settings</span><span class="ni-label">Settings</span></div>
+      <div class="ni" onclick="showPage('channels')"><span class="material-symbols-outlined text-[18px] flex-shrink-0">notifications</span><span class="ni-label">Notifications</span></div>
       <div class="ni" onclick="showPage('apikeys')"><span class="material-symbols-outlined text-[18px] flex-shrink-0">key</span><span class="ni-label">API Keys</span></div>
     </nav>
 
@@ -586,6 +587,23 @@ input:not([class]),select:not([class]),textarea:not([class]){
       </div>
     </div>
 
+    <!-- ── NOTIFICATIONS ── -->
+    <div class="page" id="page-channels">
+      <div class="p-4 md:p-8 space-y-8">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out/60 mb-1">System</p>
+            <h1 class="font-head font-black text-2xl md:text-4xl tracking-tighter text-os">Notifications</h1>
+            <p class="font-body text-sm text-out mt-2">Telegram gruplarına ve Discord sunucularına gönderilecek bildirimler. Her kanal için hangi olayların gönderileceğini ve mesaj şablonunu özelleştirebilirsiniz.</p>
+          </div>
+          <button onclick="openChannelModal()" class="flex-shrink-0 flex items-center gap-2 bg-pc text-pc-on font-head font-bold rounded-lg px-5 py-3 text-sm uppercase hover:brightness-110 active:scale-[.98] transition-all sp">
+            <span class="material-symbols-outlined text-sm">add</span>Add Channel
+          </button>
+        </div>
+        <div id="channels-list" class="space-y-4"></div>
+      </div>
+    </div>
+
     <!-- ── API KEYS ── -->
     <div class="page" id="page-apikeys">
       <div class="p-4 md:p-8 space-y-8">
@@ -700,6 +718,113 @@ input:not([class]),select:not([class]),textarea:not([class]){
 </div>
 
 <!-- MODALS -->
+
+<!-- Channel Modal -->
+<div class="modal-overlay" id="modal-channel">
+  <div class="w-[560px] max-h-[90vh] overflow-y-auto bg-sl1 rounded-xl sp">
+    <div class="h-0.5 bg-pc"></div>
+    <div class="p-7 space-y-5">
+      <h2 class="font-head font-black text-xl tracking-tight" id="channel-modal-title">Add Notification Channel</h2>
+
+      <!-- Name + Platform -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block font-mono text-[10px] uppercase tracking-[.2em] text-out mb-2">Channel Name</label>
+          <input type="text" id="ch-name" placeholder="e.g. Klan Telegram Grubu"
+            class="w-full bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-4 py-3 font-mono text-sm text-os placeholder:text-out/40 outline-none"/>
+        </div>
+        <div>
+          <label class="block font-mono text-[10px] uppercase tracking-[.2em] text-out mb-2">Platform</label>
+          <select id="ch-platform" onchange="updateChannelTargetLabel()"
+            class="w-full bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-4 py-3 font-mono text-sm text-os outline-none cursor-pointer">
+            <option value="telegram">Telegram</option>
+            <option value="discord">Discord</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Target -->
+      <div>
+        <label class="block font-mono text-[10px] uppercase tracking-[.2em] text-out mb-2" id="ch-target-label">Telegram Chat ID</label>
+        <input type="text" id="ch-target" placeholder="-100xxxxxxxxxx"
+          class="w-full bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-4 py-3 font-mono text-sm text-os placeholder:text-out/40 outline-none"/>
+        <p class="font-mono text-[10px] text-out/50 mt-1.5" id="ch-target-hint">Botu gruba ekleyin ve Chat ID'sini girin. Bot ID'si için @userinfobot kullanabilirsiniz.</p>
+      </div>
+
+      <!-- Events -->
+      <div>
+        <label class="block font-mono text-[10px] uppercase tracking-[.2em] text-out mb-3">Events</label>
+        <div class="space-y-2">
+          <label class="flex items-center gap-3 cursor-pointer group">
+            <input type="checkbox" id="ch-ev-new" class="w-4 h-4 rounded accent-pc" checked/>
+            <div>
+              <div class="font-body text-sm text-os">🎉 New Gift Code Found</div>
+              <div class="font-mono text-[10px] text-out/60">Yeni bir gift code bulunduğunda</div>
+            </div>
+          </label>
+          <label class="flex items-center gap-3 cursor-pointer group">
+            <input type="checkbox" id="ch-ev-dist" class="w-4 h-4 rounded accent-pc" checked/>
+            <div>
+              <div class="font-body text-sm text-os">✅ Distribution Complete</div>
+              <div class="font-mono text-[10px] text-out/60">Dağıtım tamamlandığında</div>
+            </div>
+          </label>
+          <label class="flex items-center gap-3 cursor-pointer group">
+            <input type="checkbox" id="ch-ev-expiry" class="w-4 h-4 rounded accent-pc" checked/>
+            <div>
+              <div class="font-body text-sm text-os">⏰ Expiry Warning</div>
+              <div class="font-mono text-[10px] text-out/60">Kod sona ermeden 72 saat önce</div>
+            </div>
+          </label>
+          <label class="flex items-center gap-3 cursor-pointer group">
+            <input type="checkbox" id="ch-ev-daily" class="w-4 h-4 rounded accent-pc"/>
+            <div>
+              <div class="font-body text-sm text-os">📅 Daily Summary</div>
+              <div class="font-mono text-[10px] text-out/60">Günlük istatistik özeti (gece 00:00)</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Templates -->
+      <div>
+        <button onclick="toggleChannelTemplates()" class="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[.2em] text-out hover:text-os transition-colors">
+          <span class="material-symbols-outlined text-sm" id="ch-tpl-icon">expand_more</span>
+          Customize Message Templates (optional)
+        </button>
+        <div id="ch-templates" class="hidden mt-3 space-y-3">
+          <p class="font-mono text-[10px] text-out/50">Değişkenler: <code class="text-p">{code}</code> <code class="text-p">{delivered}</code> <code class="text-p">{failed}</code> <code class="text-p">{total}</code> <code class="text-p">{hours}</code> <code class="text-p">{players}</code> — Boş bırakırsanız varsayılan şablon kullanılır.</p>
+          <div>
+            <label class="block font-mono text-[10px] text-out/60 mb-1">New Code Template</label>
+            <textarea id="ch-tpl-new" rows="3" placeholder="Boş = varsayılan şablon"
+              class="w-full bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-4 py-3 font-mono text-xs text-os placeholder:text-out/40 outline-none resize-none"></textarea>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] text-out/60 mb-1">Distribution Complete Template</label>
+            <textarea id="ch-tpl-dist" rows="3" placeholder="Boş = varsayılan şablon"
+              class="w-full bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-4 py-3 font-mono text-xs text-os placeholder:text-out/40 outline-none resize-none"></textarea>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] text-out/60 mb-1">Expiry Warning Template</label>
+            <textarea id="ch-tpl-expiry" rows="3" placeholder="Boş = varsayılan şablon"
+              class="w-full bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-4 py-3 font-mono text-xs text-os placeholder:text-out/40 outline-none resize-none"></textarea>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] text-out/60 mb-1">Daily Summary Template</label>
+            <textarea id="ch-tpl-daily" rows="3" placeholder="Boş = varsayılan şablon"
+              class="w-full bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-4 py-3 font-mono text-xs text-os placeholder:text-out/40 outline-none resize-none"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button onclick="saveChannel()" class="flex-1 bg-pc text-pc-on font-head font-bold rounded-lg py-3 text-sm uppercase hover:brightness-110 active:scale-[.98] transition-all sp" id="ch-save-btn">Save Channel</button>
+        <button onclick="closeModal('modal-channel')" class="px-6 bg-slh text-out hover:text-os font-head font-bold rounded-lg py-3 text-sm uppercase transition-all">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-add-player">
   <div class="w-[460px] bg-sl1 rounded-xl overflow-hidden sp">
     <div class="h-0.5 bg-pc"></div>
@@ -855,7 +980,7 @@ function closeMobileSidebar() {
   }
 })();
 
-const PAGES = ['dashboard','players','codes','daemon','logs','editor','settings','apikeys'];
+const PAGES = ['dashboard','players','codes','daemon','logs','editor','settings','channels','apikeys'];
 function showPage(name) {
   PAGES.forEach(p => document.getElementById(`page-${p}`).classList.remove('active'));
   document.querySelectorAll('.ni').forEach(n => n.classList.remove('active'));
@@ -863,7 +988,8 @@ function showPage(name) {
   const idx = PAGES.indexOf(name);
   if (idx >= 0) document.querySelectorAll('.ni')[idx]?.classList.add('active');
   const actions = { dashboard:loadDashboard, players:loadPlayers, codes:loadCodes,
-    logs:loadLogs, editor:loadEditorFile, settings:loadSettings, apikeys:loadApiKeys };
+    logs:loadLogs, editor:loadEditorFile, settings:loadSettings,
+    channels:loadChannels, apikeys:loadApiKeys };
   if (actions[name]) actions[name]();
 }
 
@@ -1278,6 +1404,156 @@ async function saveSettings() {
   });
   await apiFetch('/settings', { method:'POST', body:JSON.stringify(update) });
   toast('Settings saved');
+}
+
+// ── Notification Channels ──────────────────────────────────
+let _channelEditId = null;
+const PLATFORM_ICONS = { telegram: '✈️', discord: '🎮' };
+const EVENT_LABELS = {
+  ev_new_code:      { icon:'🎉', label:'New Code' },
+  ev_dist_complete: { icon:'✅', label:'Distribution' },
+  ev_expiry_warning:{ icon:'⏰', label:'Expiry' },
+  ev_daily_summary: { icon:'📅', label:'Daily' },
+};
+
+async function loadChannels() {
+  const channels = await apiFetch('/channels');
+  const el = document.getElementById('channels-list');
+  if (!channels.length) {
+    el.innerHTML = `<div class="bg-sl1 rounded-xl p-8 text-center">
+      <span class="material-symbols-outlined text-4xl text-out/30 mb-3 block">notifications_off</span>
+      <p class="font-body text-sm text-out">No notification channels yet.</p>
+      <p class="font-mono text-[10px] text-out/50 mt-1">Add a Telegram group or Discord webhook to get started.</p>
+    </div>`;
+    return;
+  }
+  el.innerHTML = channels.map(ch => {
+    const activeEvents = Object.entries(EVENT_LABELS)
+      .filter(([k]) => ch[k])
+      .map(([k,v]) => `<span class="inline-flex items-center gap-1 bg-slh rounded-md px-2 py-0.5 font-mono text-[10px] text-out">${v.icon} ${v.label}</span>`)
+      .join('');
+    const enabledBadge = ch.enabled
+      ? `<span class="inline-flex items-center gap-1 bg-tc/10 text-tc font-mono text-[10px] rounded-full px-2.5 py-0.5">● Active</span>`
+      : `<span class="inline-flex items-center gap-1 bg-slh text-out font-mono text-[10px] rounded-full px-2.5 py-0.5">○ Disabled</span>`;
+    return `<div class="bg-sl1 rounded-xl p-5 sp">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-10 h-10 bg-slh rounded-lg flex items-center justify-center flex-shrink-0 text-xl">${PLATFORM_ICONS[ch.platform] || '📡'}</div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="font-head font-bold text-os">${ch.name}</span>
+              ${enabledBadge}
+            </div>
+            <div class="font-mono text-[11px] text-out/60 truncate mt-0.5">${ch.platform === 'discord' ? 'Webhook URL' : 'Chat ID'}: <span class="text-out">${ch.platform === 'discord' ? ch.target.substring(0,40)+'…' : ch.target}</span></div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <button onclick="testChannel(${ch.id})" title="Test" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slh hover:bg-sc/20 hover:text-sc text-out transition-all">
+            <span class="material-symbols-outlined text-sm">send</span>
+          </button>
+          <button onclick="toggleChannel(${ch.id}, ${ch.enabled ? 0 : 1})" title="${ch.enabled ? 'Disable' : 'Enable'}" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slh hover:bg-slx text-out transition-all">
+            <span class="material-symbols-outlined text-sm">${ch.enabled ? 'toggle_on' : 'toggle_off'}</span>
+          </button>
+          <button onclick="editChannel(${ch.id})" title="Edit" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slh hover:bg-pc/20 hover:text-pc text-out transition-all">
+            <span class="material-symbols-outlined text-sm">edit</span>
+          </button>
+          <button onclick="deleteChannel(${ch.id}, '${ch.name.replace(/'/g,"\\'")}' )" title="Delete" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slh hover:bg-ec/20 hover:text-e text-out transition-all">
+            <span class="material-symbols-outlined text-sm">delete</span>
+          </button>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-1.5 mt-3">${activeEvents || '<span class="font-mono text-[10px] text-out/40">No events enabled</span>'}</div>
+    </div>`;
+  }).join('');
+}
+
+function openChannelModal(ch = null) {
+  _channelEditId = ch ? ch.id : null;
+  document.getElementById('channel-modal-title').textContent = ch ? 'Edit Channel' : 'Add Notification Channel';
+  document.getElementById('ch-save-btn').textContent = ch ? 'Save Changes' : 'Save Channel';
+  document.getElementById('ch-name').value     = ch?.name     || '';
+  document.getElementById('ch-platform').value = ch?.platform || 'telegram';
+  document.getElementById('ch-target').value   = ch?.target   || '';
+  document.getElementById('ch-ev-new').checked    = ch ? !!ch.ev_new_code      : true;
+  document.getElementById('ch-ev-dist').checked   = ch ? !!ch.ev_dist_complete : true;
+  document.getElementById('ch-ev-expiry').checked = ch ? !!ch.ev_expiry_warning: true;
+  document.getElementById('ch-ev-daily').checked  = ch ? !!ch.ev_daily_summary : false;
+  document.getElementById('ch-tpl-new').value    = ch?.tpl_new_code      || '';
+  document.getElementById('ch-tpl-dist').value   = ch?.tpl_dist_complete || '';
+  document.getElementById('ch-tpl-expiry').value = ch?.tpl_expiry_warning|| '';
+  document.getElementById('ch-tpl-daily').value  = ch?.tpl_daily_summary || '';
+  updateChannelTargetLabel();
+  document.getElementById('modal-channel').classList.add('active');
+}
+
+function updateChannelTargetLabel() {
+  const p = document.getElementById('ch-platform').value;
+  document.getElementById('ch-target-label').textContent = p === 'discord' ? 'Discord Webhook URL' : 'Telegram Chat ID';
+  document.getElementById('ch-target').placeholder = p === 'discord' ? 'https://discord.com/api/webhooks/...' : '-100xxxxxxxxxx';
+  document.getElementById('ch-target-hint').textContent = p === 'discord'
+    ? 'Discord sunucunuzda bir webhook oluşturun ve URL\'sini girin.'
+    : 'Botu gruba ekleyin ve Chat ID\'sini girin. @userinfobot ile öğrenebilirsiniz.';
+}
+
+function toggleChannelTemplates() {
+  const el = document.getElementById('ch-templates');
+  const icon = document.getElementById('ch-tpl-icon');
+  el.classList.toggle('hidden');
+  icon.textContent = el.classList.contains('hidden') ? 'expand_more' : 'expand_less';
+}
+
+async function saveChannel() {
+  const name   = document.getElementById('ch-name').value.trim();
+  const target = document.getElementById('ch-target').value.trim();
+  if (!name || !target) { toast('Name and target are required', true); return; }
+  const body = {
+    name, target,
+    platform:          document.getElementById('ch-platform').value,
+    ev_new_code:       document.getElementById('ch-ev-new').checked,
+    ev_dist_complete:  document.getElementById('ch-ev-dist').checked,
+    ev_expiry_warning: document.getElementById('ch-ev-expiry').checked,
+    ev_daily_summary:  document.getElementById('ch-ev-daily').checked,
+    tpl_new_code:      document.getElementById('ch-tpl-new').value.trim()    || null,
+    tpl_dist_complete: document.getElementById('ch-tpl-dist').value.trim()   || null,
+    tpl_expiry_warning:document.getElementById('ch-tpl-expiry').value.trim() || null,
+    tpl_daily_summary: document.getElementById('ch-tpl-daily').value.trim()  || null,
+  };
+  try {
+    if (_channelEditId) {
+      await apiFetch(`/channels/${_channelEditId}`, { method:'PATCH', body:JSON.stringify(body) });
+      toast('Channel updated');
+    } else {
+      await apiFetch('/channels', { method:'POST', body:JSON.stringify(body) });
+      toast('Channel added');
+    }
+    closeModal('modal-channel');
+    loadChannels();
+  } catch(e) { toast('Error: ' + e.message, true); }
+}
+
+async function editChannel(id) {
+  const channels = await apiFetch('/channels');
+  const ch = channels.find(c => c.id === id);
+  if (ch) openChannelModal(ch);
+}
+
+async function toggleChannel(id, enabled) {
+  await apiFetch(`/channels/${id}`, { method:'PATCH', body:JSON.stringify({ enabled: !!enabled }) });
+  loadChannels();
+}
+
+async function deleteChannel(id, name) {
+  if (!confirm(`Delete channel "${name}"?`)) return;
+  await apiFetch(`/channels/${id}`, { method:'DELETE' });
+  toast('Channel deleted');
+  loadChannels();
+}
+
+async function testChannel(id) {
+  try {
+    await apiFetch(`/channels/${id}/test`, { method:'POST' });
+    toast('Test message sent ✓');
+  } catch(e) { toast('Test failed: ' + e.message, true); }
 }
 
 async function loadApiKeys() {

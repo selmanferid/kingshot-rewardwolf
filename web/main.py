@@ -675,6 +675,166 @@ def get_health_data():
 def health(_=Depends(verify_token)):
     return get_health_data()
 
+# ── Notification Channels ────────────────────────────────
+DEFAULT_CHANNEL_TEMPLATES = {
+    "new_code":       "🎉 New Gift Code Found!\n🎁 Code: {code}\n🔄 Queued for distribution...",
+    "dist_complete":  "✅ Distribution Complete!\n🎁 Code: {code}\n\n✅ Delivered: {delivered}\n❌ Failed: {failed}\n👥 Total: {total}",
+    "expiry_warning": "⏰ Gift Code Expiring!\n🎁 Code: {code}\n⏱ {hours}h remaining\n📊 {delivered}/{total} delivered",
+    "daily_summary":  "📅 Daily Summary\n👥 Players: {players}\n✅ Delivered: {delivered}\n❌ Failed: {failed}",
+}
+
+class ChannelCreate(BaseModel):
+    name:                str
+    platform:            str = "telegram"   # "telegram" | "discord"
+    target:              str                # chat_id veya webhook URL
+    enabled:             bool = True
+    ev_new_code:         bool = True
+    ev_dist_complete:    bool = True
+    ev_expiry_warning:   bool = True
+    ev_daily_summary:    bool = False
+    tpl_new_code:        Optional[str] = None
+    tpl_dist_complete:   Optional[str] = None
+    tpl_expiry_warning:  Optional[str] = None
+    tpl_daily_summary:   Optional[str] = None
+
+class ChannelUpdate(BaseModel):
+    name:                Optional[str]  = None
+    platform:            Optional[str]  = None
+    target:              Optional[str]  = None
+    enabled:             Optional[bool] = None
+    ev_new_code:         Optional[bool] = None
+    ev_dist_complete:    Optional[bool] = None
+    ev_expiry_warning:   Optional[bool] = None
+    ev_daily_summary:    Optional[bool] = None
+    tpl_new_code:        Optional[str]  = None
+    tpl_dist_complete:   Optional[str]  = None
+    tpl_expiry_warning:  Optional[str]  = None
+    tpl_daily_summary:   Optional[str]  = None
+
+def init_channels_table():
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS notification_channels (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            name                TEXT NOT NULL,
+            platform            TEXT NOT NULL DEFAULT 'telegram',
+            target              TEXT NOT NULL,
+            enabled             INTEGER DEFAULT 1,
+            ev_new_code         INTEGER DEFAULT 1,
+            ev_dist_complete    INTEGER DEFAULT 1,
+            ev_expiry_warning   INTEGER DEFAULT 1,
+            ev_daily_summary    INTEGER DEFAULT 0,
+            tpl_new_code        TEXT,
+            tpl_dist_complete   TEXT,
+            tpl_expiry_warning  TEXT,
+            tpl_daily_summary   TEXT,
+            created_at          TEXT NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+@app.get("/api/channels")
+def list_channels(_=Depends(verify_token)):
+    conn = db()
+    rows = conn.execute("SELECT * FROM notification_channels ORDER BY created_at DESC").fetchall()
+    conn.close()
+    result = []
+    for r in rows:
+        d = dict(r)
+        # Null template'leri default ile doldur (UI'da göstermek için)
+        for ev in ("new_code", "dist_complete", "expiry_warning", "daily_summary"):
+            if not d.get(f"tpl_{ev}"):
+                d[f"tpl_{ev}_default"] = DEFAULT_CHANNEL_TEMPLATES.get(ev, "")
+        result.append(d)
+    return result
+
+@app.post("/api/channels")
+def create_channel(body: ChannelCreate, _=Depends(verify_token)):
+    conn = db()
+    cur = conn.execute("""
+        INSERT INTO notification_channels
+            (name, platform, target, enabled,
+             ev_new_code, ev_dist_complete, ev_expiry_warning, ev_daily_summary,
+             tpl_new_code, tpl_dist_complete, tpl_expiry_warning, tpl_daily_summary,
+             created_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+    """, (body.name, body.platform, body.target, int(body.enabled),
+          int(body.ev_new_code), int(body.ev_dist_complete),
+          int(body.ev_expiry_warning), int(body.ev_daily_summary),
+          body.tpl_new_code, body.tpl_dist_complete,
+          body.tpl_expiry_warning, body.tpl_daily_summary,
+          datetime.now(timezone.utc).isoformat()))
+    conn.commit()
+    row = conn.execute("SELECT * FROM notification_channels WHERE id=?", (cur.lastrowid,)).fetchone()
+    conn.close()
+    return dict(row)
+
+@app.patch("/api/channels/{channel_id}")
+def update_channel(channel_id: int, body: ChannelUpdate, _=Depends(verify_token)):
+    conn = db()
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    # bool → int dönüşümü
+    for bfield in ("enabled","ev_new_code","ev_dist_complete","ev_expiry_warning","ev_daily_summary"):
+        if bfield in updates:
+            updates[bfield] = int(updates[bfield])
+    set_clause = ", ".join(f"{k}=?" for k in updates)
+    conn.execute(f"UPDATE notification_channels SET {set_clause} WHERE id=?",
+                 (*updates.values(), channel_id))
+    conn.commit()
+    row = conn.execute("SELECT * FROM notification_channels WHERE id=?", (channel_id,)).fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    return dict(row)
+
+@app.delete("/api/channels/{channel_id}")
+def delete_channel(channel_id: int, _=Depends(verify_token)):
+    conn = db()
+    conn.execute("DELETE FROM notification_channels WHERE id=?", (channel_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+@app.post("/api/channels/{channel_id}/test")
+def test_channel(channel_id: int, _=Depends(verify_token)):
+    conn = db()
+    row = conn.execute("SELECT * FROM notification_channels WHERE id=?", (channel_id,)).fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    r = dict(row)
+    test_msg = f"🔔 Test message from WLF Gift Panel\nChannel: {r['name']}\nPlatform: {r['platform'].capitalize()}"
+    try:
+        if r["platform"] == "telegram":
+            import requests as req
+            token = os.getenv("TELEGRAM_TOKEN","")
+            if not token:
+                raise HTTPException(status_code=400, detail="TELEGRAM_TOKEN not configured")
+            resp = req.post(
+                f"https://api.telegram.org/bot{token}/sendMessage",
+                json={"chat_id": r["target"], "text": test_msg},
+                timeout=10
+            )
+            if not resp.ok:
+                raise HTTPException(status_code=400, detail=f"Telegram error: {resp.text}")
+        elif r["platform"] == "discord":
+            import requests as req, re
+            resp = req.post(r["target"], json={"content": test_msg}, timeout=10)
+            if not resp.ok:
+                raise HTTPException(status_code=400, detail=f"Discord error: {resp.text}")
+        return {"ok": True, "message": "Test message sent successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/channels/templates")
+def get_default_templates(_=Depends(verify_token)):
+    return DEFAULT_CHANNEL_TEMPLATES
+
 # ── API Key Management ────────────────────────────────────
 class ApiKeyCreate(BaseModel):
     name: str
@@ -683,6 +843,7 @@ class ApiKeyCreate(BaseModel):
 @app.on_event("startup")
 async def startup():
     init_api_keys_table()
+    init_channels_table()
 
 @app.get("/api/apikeys")
 def list_api_keys(_=Depends(verify_token)):
