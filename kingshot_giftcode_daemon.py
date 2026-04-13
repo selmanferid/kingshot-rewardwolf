@@ -126,18 +126,19 @@ def send_telegram(message, chat_id=None):
         log.warning(f"Telegram send error: {e}")
 
 # ── Notification Channels ────────────────────────────────────
+# {code_fmt} → platform'a göre kopyalanabilir kod formatı
+# Telegram: <code>WEEKENDPLAN</code>  |  Discord: `WEEKENDPLAN`
 DEFAULT_CHANNEL_TEMPLATES = {
-    "new_code":       "🎉 New Gift Code Found!\n🎁 Code: {code}\n🔄 Queued for distribution...",
-    "dist_complete":  "✅ Distribution Complete!\n🎁 Code: {code}\n\n✅ Delivered: {delivered}\n❌ Failed: {failed}\n👥 Total: {total}",
-    "expiry_warning": "⏰ Gift Code Expiring!\n🎁 Code: {code}\n⏱ {hours}h remaining\n📊 {delivered}/{total} delivered",
+    "new_code":       "🎉 New Gift Code Found!\n🎁 Code: {code_fmt}\n🔄 Queued for distribution...",
+    "dist_complete":  "✅ Distribution Complete!\n🎁 Code: {code_fmt}\n\n✅ Delivered: {delivered}\n❌ Failed: {failed}\n👥 Total: {total}",
+    "expiry_warning": "⏰ Gift Code Expiring!\n🎁 Code: {code_fmt}\n⏱ {hours}h remaining\n📊 {delivered}/{total} delivered",
     "daily_summary":  "📅 Daily Summary\n👥 Players: {players}\n✅ Delivered: {delivered}\n❌ Failed: {failed}",
 }
 
 def _send_discord(webhook_url: str, message: str):
-    """Discord webhook'a düz metin olarak gönder (HTML tag'lerini temizle)."""
+    """Discord webhook'a markdown formatında gönder."""
     try:
-        clean = re.sub(r'<[^>]+>', '', message)
-        requests.post(webhook_url, json={"content": clean}, timeout=10)
+        requests.post(webhook_url, json={"content": message}, timeout=10)
     except Exception as e:
         log.warning(f"Discord send error: {e}")
 
@@ -159,18 +160,31 @@ def send_to_channels(event: str, **kwargs):
 
     default_tpl = DEFAULT_CHANNEL_TEMPLATES.get(event, "")
     for row in rows:
+        platform = row["platform"]
         tpl = row["template"] or default_tpl
+
+        # Platform'a özgü kopyalanabilir kod formatını kwargs'a ekle
+        code = kwargs.get("code", "")
+        platform_kwargs = dict(kwargs)
+        if platform == "telegram":
+            platform_kwargs["code_fmt"] = f"<code>{code}</code>"
+        elif platform == "discord":
+            platform_kwargs["code_fmt"] = f"`{code}`"
+        else:
+            platform_kwargs["code_fmt"] = code
+
         try:
-            message = tpl.format(**kwargs)
+            message = tpl.format(**platform_kwargs)
         except (KeyError, ValueError) as e:
             log.warning(f"Channel template error [{event}]: {e} — using default")
             try:
-                message = default_tpl.format(**kwargs)
+                message = default_tpl.format(**platform_kwargs)
             except Exception:
                 continue
-        if row["platform"] == "telegram":
+
+        if platform == "telegram":
             send_telegram(message, row["target"])
-        elif row["platform"] == "discord":
+        elif platform == "discord":
             _send_discord(row["target"], message)
 
 def get_telegram_updates():

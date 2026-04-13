@@ -677,9 +677,9 @@ def health(_=Depends(verify_token)):
 
 # ── Notification Channels ────────────────────────────────
 DEFAULT_CHANNEL_TEMPLATES = {
-    "new_code":       "🎉 New Gift Code Found!\n🎁 Code: {code}\n🔄 Queued for distribution...",
-    "dist_complete":  "✅ Distribution Complete!\n🎁 Code: {code}\n\n✅ Delivered: {delivered}\n❌ Failed: {failed}\n👥 Total: {total}",
-    "expiry_warning": "⏰ Gift Code Expiring!\n🎁 Code: {code}\n⏱ {hours}h remaining\n📊 {delivered}/{total} delivered",
+    "new_code":       "🎉 New Gift Code Found!\n🎁 Code: {code_fmt}\n🔄 Queued for distribution...",
+    "dist_complete":  "✅ Distribution Complete!\n🎁 Code: {code_fmt}\n\n✅ Delivered: {delivered}\n❌ Failed: {failed}\n👥 Total: {total}",
+    "expiry_warning": "⏰ Gift Code Expiring!\n🎁 Code: {code_fmt}\n⏱ {hours}h remaining\n📊 {delivered}/{total} delivered",
     "daily_summary":  "📅 Daily Summary\n👥 Players: {players}\n✅ Delivered: {delivered}\n❌ Failed: {failed}",
 }
 
