@@ -432,23 +432,52 @@ input:not([class]),select:not([class]),textarea:not([class]){
           <h1 class="font-head font-black text-2xl md:text-4xl tracking-tighter text-os">Rewardwolf Control</h1>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 mb-5">
-          <div class="bg-sl1 rounded-xl p-6 sp flex flex-col gap-3">
-            <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out mb-1">Process Controls</p>
-            <button onclick="daemonAction('start')" class="w-full py-3 bg-tc text-tc-on font-head font-black rounded-lg flex items-center justify-center gap-2 hover:brightness-110 active:scale-[.98] transition-all sp">
-              <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">play_arrow</span>START
+        <!-- Row 1: Process Controls + Status Card + Terminal -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-5 mb-5">
+          <!-- Process Controls -->
+          <div class="bg-sl1 rounded-xl p-5 flex flex-col gap-3">
+            <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out mb-1">Process</p>
+            <button onclick="daemonAction('start')" class="w-full py-2.5 bg-tc text-tc-on font-head font-black rounded-lg flex items-center justify-center gap-2 hover:brightness-110 active:scale-[.98] transition-all sp text-sm">
+              <span class="material-symbols-outlined text-sm" style="font-variation-settings:'FILL' 1;">play_arrow</span>START
             </button>
-            <button onclick="daemonAction('stop')" class="w-full py-3 bg-ec text-ec-on font-head font-black rounded-lg flex items-center justify-center gap-2 hover:brightness-110 active:scale-[.98] transition-all sp">
-              <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">stop</span>STOP
+            <button onclick="daemonAction('stop')" class="w-full py-2.5 bg-ec text-ec-on font-head font-black rounded-lg flex items-center justify-center gap-2 hover:brightness-110 active:scale-[.98] transition-all sp text-sm">
+              <span class="material-symbols-outlined text-sm" style="font-variation-settings:'FILL' 1;">stop</span>STOP
             </button>
-            <button onclick="daemonAction('restart')" class="w-full py-3 bg-pc text-pc-on font-head font-black rounded-lg flex items-center justify-center gap-2 hover:brightness-110 active:scale-[.98] transition-all sp">
-              <span class="material-symbols-outlined">refresh</span>RESTART
+            <button onclick="daemonAction('restart')" class="w-full py-2.5 bg-pc text-pc-on font-head font-black rounded-lg flex items-center justify-center gap-2 hover:brightness-110 active:scale-[.98] transition-all sp text-sm">
+              <span class="material-symbols-outlined text-sm">refresh</span>RESTART
             </button>
-            <button onclick="daemonAction('rebuild')" class="w-full py-3 bg-sc text-sc-on font-head font-black rounded-lg flex items-center justify-center gap-2 hover:brightness-110 active:scale-[.98] transition-all sp">
-              <span class="material-symbols-outlined">build</span>REBUILD
+            <button onclick="daemonAction('rebuild')" class="w-full py-2.5 bg-sc text-sc-on font-head font-black rounded-lg flex items-center justify-center gap-2 hover:brightness-110 active:scale-[.98] transition-all sp text-sm">
+              <span class="material-symbols-outlined text-sm">build</span>REBUILD
             </button>
           </div>
 
+          <!-- Status + Health Card -->
+          <div class="bg-sl1 rounded-xl p-5 flex flex-col gap-4">
+            <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out">Status</p>
+            <div class="flex items-center gap-3">
+              <div id="ctrl-daemon-dot" class="sdot stopped"></div>
+              <div>
+                <div id="ctrl-daemon-status" class="font-head font-bold text-sm" style="color:#ffb4ab">Unknown</div>
+                <div id="ctrl-daemon-uptime" class="font-mono text-[10px] text-out/60 mt-0.5">—</div>
+              </div>
+            </div>
+            <div class="space-y-2.5">
+              <div>
+                <div class="flex justify-between font-mono text-[10px] text-out/60 mb-1"><span>CPU</span><span id="ctrl-cpu-val">—</span></div>
+                <div class="h-1.5 bg-sl0 rounded-full overflow-hidden"><div id="ctrl-cpu-bar" class="h-full bg-t rounded-full transition-all" style="width:0%"></div></div>
+              </div>
+              <div>
+                <div class="flex justify-between font-mono text-[10px] text-out/60 mb-1"><span>RAM</span><span id="ctrl-ram-val">—</span></div>
+                <div class="h-1.5 bg-sl0 rounded-full overflow-hidden"><div id="ctrl-ram-bar" class="h-full bg-pc rounded-full transition-all" style="width:0%"></div></div>
+              </div>
+              <div>
+                <div class="flex justify-between font-mono text-[10px] text-out/60 mb-1"><span>TEMP</span><span id="ctrl-temp-val">—</span></div>
+                <div class="h-1.5 bg-sl0 rounded-full overflow-hidden"><div id="ctrl-temp-bar" class="h-full bg-e rounded-full transition-all" style="width:0%"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Terminal -->
           <div class="col-span-2 bg-sl0 rounded-xl overflow-hidden border border-white/5 flex flex-col">
             <div class="bg-slh px-4 py-2.5 flex items-center gap-3 border-b border-white/5">
               <div class="flex gap-1.5">
@@ -458,7 +487,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
               </div>
               <span class="font-mono text-[10px] text-out/60">wolf_terminal — rewardwolf control</span>
             </div>
-            <div id="terminal" class="flex-1 p-5 h-64 overflow-y-auto space-y-0.5">
+            <div id="terminal" class="flex-1 p-4 h-52 overflow-y-auto space-y-0.5">
               <div class="tl info">KingShot WLF Terminal — docker commands only</div>
               <div class="tl info">Allowed: docker logs, docker ps, docker inspect, docker stats</div>
             </div>
@@ -468,21 +497,96 @@ input:not([class]),select:not([class]),textarea:not([class]){
                 <input type="text" id="term-input" placeholder="docker logs kingshot-daemon --tail 30"
                   class="flex-1 bg-transparent border-none outline-none font-mono text-sm text-os placeholder:text-out/40"/>
               </div>
-              <button onclick="runTerminal()" class="bg-pc text-pc-on font-head font-bold px-4 rounded-lg text-sm hover:brightness-110 active:scale-[.98] transition-all sp">
-                Run
+              <button onclick="runTerminal()" class="bg-pc text-pc-on font-head font-bold px-4 rounded-lg text-sm hover:brightness-110 active:scale-[.98] transition-all sp">Run</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 2: Distribution Status -->
+        <div class="bg-sl1 rounded-xl p-5 mb-5">
+          <div class="flex items-center justify-between mb-4">
+            <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out">Distribution Status</p>
+            <button onclick="loadDistributionStatus()" class="text-out/40 hover:text-out transition-colors sp">
+              <span class="material-symbols-outlined text-sm">refresh</span>
+            </button>
+          </div>
+          <div id="dist-status-list">
+            <div class="font-mono text-[11px] text-out/40 text-center py-4">Loading...</div>
+          </div>
+        </div>
+
+        <!-- Row 3: Quick Actions -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 mb-5">
+          <!-- Trigger Distribution -->
+          <div class="bg-sl1 rounded-xl p-5">
+            <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out mb-4">Trigger Distribution</p>
+            <div class="flex gap-3">
+              <select id="trigger-code-select" class="flex-1 bg-slh border border-white/5 focus:border-pc/30 rounded-lg px-3 py-2 text-sm text-os outline-none">
+                <option value="">Select active code...</option>
+              </select>
+              <button onclick="triggerDistribution()" class="bg-tc text-tc-on font-head font-bold px-4 rounded-lg text-sm hover:brightness-110 active:scale-[.98] transition-all sp flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-sm" style="font-variation-settings:'FILL' 1;">play_arrow</span>Run
+              </button>
+            </div>
+          </div>
+          <!-- Add Code Manually -->
+          <div class="bg-sl1 rounded-xl p-5">
+            <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out mb-4">Add Code Manually</p>
+            <div class="flex gap-2">
+              <input type="text" id="new-code-input" placeholder="GIFTCODE"
+                class="flex-1 bg-slh border border-white/5 focus:border-pc/30 rounded-lg px-3 py-2 text-sm text-os placeholder:text-out/40 outline-none"/>
+              <input type="date" id="new-code-expires"
+                class="bg-slh border border-white/5 focus:border-pc/30 rounded-lg px-3 py-2 text-sm text-os outline-none"/>
+              <button onclick="addCodeManually()" class="bg-pc text-pc-on font-head font-bold px-4 rounded-lg text-sm hover:brightness-110 active:scale-[.98] transition-all sp flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-sm">add</span>Add
               </button>
             </div>
           </div>
         </div>
 
-        <div class="bg-sl1 rounded-xl p-6 sp">
-          <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out mb-4">Telegram Message</p>
-          <textarea id="tg-msg" placeholder="Send a message to the group..."
-            class="w-full bg-slh border border-white/5 focus:border-pc/30 focus:ring-0 rounded-lg px-4 py-3 text-sm text-os placeholder:text-out/40 outline-none resize-none h-20 mb-3"></textarea>
-          <button onclick="sendTelegram()" class="flex items-center gap-2 bg-pc text-pc-on font-head font-bold rounded-lg px-5 py-2 text-sm uppercase hover:brightness-110 active:scale-[.98] transition-all sp">
-            <span class="material-symbols-outlined text-sm">send</span>Send to Telegram
-          </button>
+        <!-- Row 4: Message Sender with Channel Selector -->
+        <div class="bg-sl1 rounded-xl p-5 mb-5">
+          <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out mb-4">Send Message</p>
+          <div class="flex flex-col md:flex-row gap-3">
+            <select id="msg-channel-select" class="bg-slh border border-white/5 focus:border-pc/30 rounded-lg px-3 py-2 text-sm text-os outline-none md:w-56">
+              <option value="">Select channel...</option>
+            </select>
+            <textarea id="channel-msg" placeholder="Write your message..."
+              class="flex-1 bg-slh border border-white/5 focus:border-pc/30 focus:ring-0 rounded-lg px-4 py-2.5 text-sm text-os placeholder:text-out/40 outline-none resize-none h-20"></textarea>
+            <button onclick="sendChannelMessage()" class="bg-pc text-pc-on font-head font-bold rounded-lg px-5 py-2 text-sm uppercase hover:brightness-110 active:scale-[.98] transition-all sp flex items-center gap-2 self-end">
+              <span class="material-symbols-outlined text-sm">send</span>Send
+            </button>
+          </div>
         </div>
+
+        <!-- Row 5: System Check + Test All Channels -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+          <!-- System Check -->
+          <div class="bg-sl1 rounded-xl p-5">
+            <div class="flex items-center justify-between mb-4">
+              <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out">System Check</p>
+              <button onclick="runSystemCheck()" id="sys-check-btn" class="bg-sc text-sc-on font-head font-bold px-4 py-1.5 rounded-lg text-xs hover:brightness-110 active:scale-[.98] transition-all sp flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-sm">troubleshoot</span>Run
+              </button>
+            </div>
+            <div id="sys-check-results">
+              <div class="font-mono text-[11px] text-out/40 text-center py-3">Press Run to start</div>
+            </div>
+          </div>
+          <!-- Test All Channels -->
+          <div class="bg-sl1 rounded-xl p-5">
+            <div class="flex items-center justify-between mb-4">
+              <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out">Test All Channels</p>
+              <button onclick="testAllChannels()" class="bg-pc text-pc-on font-head font-bold px-4 py-1.5 rounded-lg text-xs hover:brightness-110 active:scale-[.98] transition-all sp flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-sm">notifications_active</span>Test All
+              </button>
+            </div>
+            <div id="test-all-results">
+              <div class="font-mono text-[11px] text-out/40 text-center py-3">Press Test All to send test notifications</div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -988,7 +1092,7 @@ function showPage(name) {
   const idx = PAGES.indexOf(name);
   if (idx >= 0) document.querySelectorAll('.ni')[idx]?.classList.add('active');
   const actions = { dashboard:loadDashboard, players:loadPlayers, codes:loadCodes,
-    logs:loadLogs, editor:loadEditorFile, settings:loadSettings,
+    daemon:loadCtrlPage, logs:loadLogs, editor:loadEditorFile, settings:loadSettings,
     channels:loadChannels, apikeys:loadApiKeys };
   if (actions[name]) actions[name]();
 }
@@ -1005,6 +1109,201 @@ async function checkDaemon() {
     txt.textContent  = d.running ? 'Rewardwolf Running' : `Rewardwolf: ${d.status}`;
     txt.style.color  = d.running ? '#84e588' : '#ffb4ab';
   } catch(e) {}
+}
+
+// ── Daemon Control Page ───────────────────────────────────
+let _uptimeStartedAt = null;
+let _uptimeInterval  = null;
+
+async function loadCtrlPage() {
+  await Promise.all([loadCtrlUptime(), loadCtrlHealth(), loadDistributionStatus(), loadChannelsForMessage()]);
+}
+
+async function loadCtrlHealth() {
+  try {
+    const d = await apiFetch('/dashboard');
+    const h = d.health;
+    const bars = [
+      ['cpu',  h.cpu,         '%',  80, 60],
+      ['ram',  h.ram,         '%',  85, 70],
+      ['temp', h.temp / 85 * 100, '°C', 75, 60],
+    ];
+    bars.forEach(([k, pct, unit, warn, med]) => {
+      const raw  = k === 'temp' ? h.temp : h[k];
+      const col  = raw > warn ? 'bg-e' : raw > med ? 'bg-pc' : 'bg-t';
+      const el   = document.getElementById(`ctrl-${k}-val`);
+      const bar  = document.getElementById(`ctrl-${k}-bar`);
+      if (el)  el.textContent       = raw.toFixed(1) + (k === 'temp' ? '°C' : '%');
+      if (bar) { bar.style.width    = Math.min(pct, 100) + '%'; bar.className = `h-full rounded-full transition-all ${col}`; }
+    });
+  } catch(e) {}
+}
+
+async function loadCtrlUptime() {
+  try {
+    const d = await apiFetch('/daemon/uptime');
+    const dot    = document.getElementById('ctrl-daemon-dot');
+    const status = document.getElementById('ctrl-daemon-status');
+    if (dot)    dot.className     = d.running ? 'sdot running' : 'sdot stopped';
+    if (status) { status.textContent = d.running ? 'Running' : (d.status || 'Stopped'); status.style.color = d.running ? '#84e588' : '#ffb4ab'; }
+    if (_uptimeInterval) clearInterval(_uptimeInterval);
+    if (d.running && d.started_at) {
+      _uptimeStartedAt = new Date(d.started_at);
+      updateUptimeDisplay();
+      _uptimeInterval = setInterval(updateUptimeDisplay, 1000);
+    } else {
+      const el = document.getElementById('ctrl-daemon-uptime');
+      if (el) el.textContent = '—';
+    }
+  } catch(e) {}
+}
+
+function updateUptimeDisplay() {
+  if (!_uptimeStartedAt) return;
+  const secs = Math.floor((Date.now() - _uptimeStartedAt) / 1000);
+  const d = Math.floor(secs / 86400), h = Math.floor((secs % 86400) / 3600);
+  const m = Math.floor((secs % 3600) / 60), s = secs % 60;
+  const parts = [];
+  if (d > 0) parts.push(`${d}d`);
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0) parts.push(`${m}m`);
+  parts.push(`${s}s`);
+  const el = document.getElementById('ctrl-daemon-uptime');
+  if (el) el.textContent = 'Up ' + parts.join(' ');
+}
+
+async function loadDistributionStatus() {
+  try {
+    const codes = await apiFetch('/distribution/status');
+    const el    = document.getElementById('dist-status-list');
+    const sel   = document.getElementById('trigger-code-select');
+    if (!codes.length) {
+      if (el)  el.innerHTML  = '<div class="font-mono text-[11px] text-out/40 text-center py-4">No active codes</div>';
+      if (sel) sel.innerHTML = '<option value="">No active codes</option>';
+      return;
+    }
+    if (el) el.innerHTML = codes.map(c => {
+      const delivered = (c.success||0) + (c.already_used||0);
+      const total     = c.player_count || 1;
+      const pct       = Math.min(Math.round(delivered / total * 100), 100);
+      const barCol    = c.is_completed ? 'bg-out/20' : pct > 80 ? 'bg-t' : 'bg-pc';
+      const badge     = c.is_completed
+        ? '<span class="bdg bdg-gray text-[9px]">Completed</span>'
+        : c.server_busy > 0
+          ? '<span class="bdg bdg-yellow text-[9px]">Busy</span>'
+          : '<span class="bdg bdg-green text-[9px]">Active</span>';
+      return `<div class="mb-3 last:mb-0">
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="font-mono text-sm text-p font-bold">${c.code}</span>
+          <div class="flex items-center gap-3">
+            <span class="font-mono text-[10px] text-out/60">${delivered}/${total} delivered</span>
+            ${c.failed > 0 ? `<span class="font-mono text-[10px] text-e">${c.failed} failed</span>` : ''}
+            ${badge}
+          </div>
+        </div>
+        <div class="h-2 bg-sl0 rounded-full overflow-hidden">
+          <div class="${barCol} h-full rounded-full transition-all duration-500" style="width:${pct}%"></div>
+        </div>
+        <div class="flex justify-between mt-1">
+          <span class="font-mono text-[10px] text-out/40">${pct}%</span>
+          <span class="font-mono text-[10px] text-out/40">${c.expires_at ? 'Exp: ' + fmtExpiry(c.expires_at) : 'No expiry'}</span>
+        </div>
+      </div>`;
+    }).join('<div class="border-t border-white/5 my-3"></div>');
+    if (sel) sel.innerHTML = '<option value="">Select active code...</option>' +
+      codes.filter(c => !c.is_completed).map(c => `<option value="${c.code}">${c.code}</option>`).join('');
+  } catch(e) {}
+}
+
+async function triggerDistribution() {
+  const code = document.getElementById('trigger-code-select').value;
+  if (!code) { toast('Select a code first', true); return; }
+  try {
+    const d = await apiFetch('/codes/add', { method:'POST', body:JSON.stringify({code}) });
+    toast(d.message || (d.ok ? 'Triggered' : 'Already active'));
+    loadDistributionStatus();
+  } catch(e) { toast('Error: ' + e.message, true); }
+}
+
+async function addCodeManually() {
+  const code = document.getElementById('new-code-input').value.trim().toUpperCase();
+  const exp  = document.getElementById('new-code-expires').value;
+  if (!code) { toast('Enter a code', true); return; }
+  try {
+    const d = await apiFetch('/codes/add', { method:'POST', body:JSON.stringify({ code, expires_at: exp || null }) });
+    if (d.ok) {
+      toast(d.message || 'Code added');
+      document.getElementById('new-code-input').value = '';
+      document.getElementById('new-code-expires').value = '';
+      loadDistributionStatus();
+    } else {
+      toast(d.message || 'Failed', true);
+    }
+  } catch(e) { toast('Error: ' + e.message, true); }
+}
+
+async function loadChannelsForMessage() {
+  try {
+    const channels = await apiFetch('/channels');
+    const sel = document.getElementById('msg-channel-select');
+    if (!sel) return;
+    if (!channels.length) { sel.innerHTML = '<option value="">No channels configured</option>'; return; }
+    sel.innerHTML = '<option value="">Select channel...</option>' +
+      channels.map(c => `<option value="${c.id}">[${c.platform.toUpperCase()}] ${esc(c.name)}</option>`).join('');
+  } catch(e) {}
+}
+
+async function sendChannelMessage() {
+  const channelId = document.getElementById('msg-channel-select').value;
+  const msg       = document.getElementById('channel-msg').value.trim();
+  if (!channelId) { toast('Select a channel', true); return; }
+  if (!msg)       { toast('Enter a message', true); return; }
+  try {
+    const d = await apiFetch('/message/send', { method:'POST', body:JSON.stringify({ channel_id: parseInt(channelId), message: msg }) });
+    if (d.ok) { toast('Message sent'); document.getElementById('channel-msg').value = ''; }
+    else      { toast('Failed to send', true); }
+  } catch(e) { toast('Error: ' + e.message, true); }
+}
+
+async function testAllChannels() {
+  toast('Testing all channels...');
+  const el = document.getElementById('test-all-results');
+  if (el) el.innerHTML = '<div class="font-mono text-[11px] text-out/40 text-center py-3">Sending...</div>';
+  try {
+    const results = await apiFetch('/channels/test-all', { method:'POST' });
+    if (!results.length) { if (el) el.innerHTML = '<div class="font-mono text-[11px] text-out/40 text-center py-3">No active channels</div>'; return; }
+    if (el) el.innerHTML = results.map(r => `
+      <div class="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+        <div class="flex items-center gap-2">
+          <span class="font-mono text-[10px] text-out/50 uppercase">${r.platform}</span>
+          <span class="font-mono text-sm text-os">${esc(r.name)}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          ${r.error ? `<span class="font-mono text-[10px] text-e/70">${esc(r.error)}</span>` : ''}
+          <span class="font-mono text-[11px] font-bold ${r.ok ? 'text-t' : 'text-e'}">${r.ok ? '✓ OK' : '✕ FAIL'}</span>
+        </div>
+      </div>`).join('');
+  } catch(e) { if (el) el.innerHTML = '<div class="font-mono text-[11px] text-e text-center py-3">' + esc(e.message) + '</div>'; }
+}
+
+async function runSystemCheck() {
+  const btn = document.getElementById('sys-check-btn');
+  const el  = document.getElementById('sys-check-results');
+  if (btn) btn.disabled = true;
+  if (el)  el.innerHTML = '<div class="font-mono text-[11px] text-out/40 text-center py-3">Running checks...</div>';
+  try {
+    const d = await apiFetch('/system/check');
+    if (el) el.innerHTML = d.checks.map(c => `
+      <div class="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+        <span class="font-mono text-sm text-os">${esc(c.name)}</span>
+        <div class="flex items-center gap-3">
+          <span class="font-mono text-[10px] text-out/60">${esc(c.detail)}</span>
+          <span class="font-mono text-[11px] font-bold ${c.ok ? 'text-t' : 'text-e'}">${c.ok ? '✓' : '✕'}</span>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    if (el) el.innerHTML = '<div class="font-mono text-[11px] text-e text-center py-3">' + esc(e.message) + '</div>';
+  } finally { if (btn) btn.disabled = false; }
 }
 
 async function loadDashboard() {

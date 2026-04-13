@@ -524,6 +524,200 @@ def telegram_send(msg: TelegramMsg, _=Depends(verify_token)):
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
+# ── Distribution Status ───────────────────────────────────
+@app.get("/api/distribution/status")
+def distribution_status(_=Depends(verify_token)):
+    conn = db()
+    rows = conn.execute("""
+        SELECT
+            ac.code, ac.expires_at, ac.is_currently_active, ac.is_completed,
+            ac.player_count,
+            COALESCE(SUM(CASE WHEN r.status='SUCCESS'      THEN 1 ELSE 0 END), 0) as success,
+            COALESCE(SUM(CASE WHEN r.status='ALREADY_USED' THEN 1 ELSE 0 END), 0) as already_used,
+            COALESCE(SUM(CASE WHEN r.status='FAILED'       THEN 1 ELSE 0 END), 0) as failed,
+            COALESCE(SUM(CASE WHEN r.status='SERVER_BUSY'  THEN 1 ELSE 0 END), 0) as server_busy,
+            COUNT(r.player_id) as processed
+        FROM active_codes ac
+        LEFT JOIN redemptions r ON r.code = ac.code
+        WHERE ac.is_currently_active = 1
+        GROUP BY ac.code
+        ORDER BY ac.is_completed ASC, ac.created_at DESC
+    """).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+class AddCodeBody(BaseModel):
+    code: str
+    expires_at: Optional[str] = None
+
+@app.post("/api/codes/add")
+def add_code_manual(body: AddCodeBody, _=Depends(verify_token)):
+    code = body.code.strip().upper()
+    if not code:
+        raise HTTPException(status_code=400, detail="Code is required")
+    conn = db()
+    existing = conn.execute("SELECT code, is_completed FROM active_codes WHERE code=?", (code,)).fetchone()
+    if existing:
+        if existing["is_completed"]:
+            conn.execute(
+                "UPDATE active_codes SET is_completed=0, is_currently_active=1, notified=0, last_updated=? WHERE code=?",
+                (datetime.now(timezone.utc).isoformat(), code)
+            )
+            conn.commit()
+            conn.close()
+            return {"ok": True, "message": "Code reset for redistribution"}
+        conn.close()
+        return {"ok": False, "message": "Code already active"}
+    conn.execute(
+        """INSERT INTO active_codes (code, created_at, expires_at, is_currently_active, is_completed, notified)
+           VALUES (?, ?, ?, 1, 0, 0)""",
+        (code, datetime.now(timezone.utc).isoformat(), body.expires_at)
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "message": "Code added"}
+
+@app.get("/api/daemon/uptime")
+def daemon_uptime_endpoint(_=Depends(verify_token)):
+    if DOCKER_TCP_URL:
+        try:
+            import urllib.request as _ur
+            req  = _ur.Request(DOCKER_TCP_URL + "/containers/kingshot-daemon/json")
+            resp = _ur.urlopen(req, timeout=3)
+            data = json.loads(resp.read())
+            state = data.get("State", {})
+            return {"started_at": state.get("StartedAt"), "running": state.get("Running", False), "status": state.get("Status", "unknown")}
+        except Exception:
+            pass
+    try:
+        code, body = _docker_unix_request("GET", "/containers/kingshot-daemon/json")
+        if code == 200:
+            data  = json.loads(body)
+            state = data.get("State", {})
+            return {"started_at": state.get("StartedAt"), "running": state.get("Running", False), "status": state.get("Status", "unknown")}
+    except Exception:
+        pass
+    return {"started_at": None, "running": False, "status": "unknown"}
+
+class SendMsgBody(BaseModel):
+    channel_id: int
+    message: str
+
+@app.post("/api/message/send")
+def send_to_channel(body: SendMsgBody, _=Depends(verify_token)):
+    conn = db()
+    row  = conn.execute("SELECT * FROM notification_channels WHERE id=?", (body.channel_id,)).fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    r = dict(row)
+    try:
+        import requests as _req
+        if r["platform"] == "telegram":
+            token = os.getenv("TELEGRAM_TOKEN", "")
+            if not token:
+                raise HTTPException(status_code=400, detail="TELEGRAM_TOKEN not configured")
+            resp = _req.post(
+                f"https://api.telegram.org/bot{token}/sendMessage",
+                json={"chat_id": r["target"], "text": body.message, "parse_mode": "HTML"},
+                timeout=10
+            )
+            if not resp.ok:
+                raise HTTPException(status_code=400, detail=f"Telegram error: {resp.text[:120]}")
+        elif r["platform"] == "discord":
+            resp = _req.post(r["target"], json={"content": body.message}, timeout=10)
+            if resp.status_code not in (200, 204):
+                raise HTTPException(status_code=400, detail=f"Discord error: {resp.text[:120]}")
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/channels/test-all")
+def test_all_channels(_=Depends(verify_token)):
+    import requests as _req
+    conn = db()
+    rows = conn.execute("SELECT * FROM notification_channels WHERE enabled=1 ORDER BY id").fetchall()
+    conn.close()
+    results = []
+    for row in rows:
+        r = dict(row)
+        try:
+            test_msg = f"🔔 Test — WLF Gift Panel\nChannel: {r['name']}"
+            if r["platform"] == "telegram":
+                token = os.getenv("TELEGRAM_TOKEN", "")
+                resp  = _req.post(
+                    f"https://api.telegram.org/bot{token}/sendMessage",
+                    json={"chat_id": r["target"], "text": test_msg}, timeout=10
+                )
+                ok, err = resp.ok, ("" if resp.ok else resp.text[:80])
+            elif r["platform"] == "discord":
+                resp = _req.post(r["target"], json={"content": test_msg}, timeout=10)
+                ok   = resp.status_code in (200, 204)
+                err  = "" if ok else resp.text[:80]
+            else:
+                ok, err = False, "Unknown platform"
+        except Exception as e:
+            ok, err = False, str(e)[:80]
+        results.append({"id": r["id"], "name": r["name"], "platform": r["platform"], "ok": ok, "error": err})
+    return results
+
+@app.get("/api/system/check")
+def system_check(_=Depends(verify_token)):
+    checks = []
+    # Daemon container
+    try:
+        code, body = _docker_unix_request("GET", "/containers/kingshot-daemon/json")
+        if code == 200:
+            data    = json.loads(body)
+            running = data.get("State", {}).get("Running", False)
+            checks.append({"name": "Daemon Container", "ok": running, "detail": "Running" if running else "Stopped"})
+        else:
+            checks.append({"name": "Daemon Container", "ok": False, "detail": f"Docker HTTP {code}"})
+    except Exception as e:
+        checks.append({"name": "Daemon Container", "ok": False, "detail": str(e)[:60]})
+    # Database
+    try:
+        conn   = db()
+        p_cnt  = conn.execute("SELECT COUNT(*) FROM players WHERE removed_at IS NULL").fetchone()[0]
+        c_cnt  = conn.execute("SELECT COUNT(*) FROM active_codes WHERE is_currently_active=1").fetchone()[0]
+        conn.close()
+        checks.append({"name": "Database", "ok": True, "detail": f"{p_cnt} players · {c_cnt} active codes"})
+    except Exception as e:
+        checks.append({"name": "Database", "ok": False, "detail": str(e)[:60]})
+    # Telegram bot
+    try:
+        import requests as _req
+        token = os.getenv("TELEGRAM_TOKEN", "")
+        if token:
+            r = _req.get(f"https://api.telegram.org/bot{token}/getMe", timeout=5)
+            if r.ok:
+                uname = r.json().get("result", {}).get("username", "?")
+                checks.append({"name": "Telegram Bot", "ok": True, "detail": f"@{uname}"})
+            else:
+                checks.append({"name": "Telegram Bot", "ok": False, "detail": "API error"})
+        else:
+            checks.append({"name": "Telegram Bot", "ok": False, "detail": "Token not configured"})
+    except Exception as e:
+        checks.append({"name": "Telegram Bot", "ok": False, "detail": str(e)[:60]})
+    # Discord webhooks
+    try:
+        conn  = db()
+        d_cnt = conn.execute(
+            "SELECT COUNT(*) FROM notification_channels WHERE platform='discord' AND enabled=1"
+        ).fetchone()[0]
+        conn.close()
+        checks.append({"name": "Discord Webhooks", "ok": True, "detail": f"{d_cnt} active"})
+    except Exception as e:
+        checks.append({"name": "Discord Webhooks", "ok": False, "detail": str(e)[:60]})
+    # System health
+    h = get_health_data()
+    checks.append({"name": "CPU",         "ok": h.get("cpu",  0) < 90, "detail": f"{h.get('cpu', 0):.1f}%"})
+    checks.append({"name": "RAM",         "ok": h.get("ram",  0) < 90, "detail": f"{h.get('ram', 0):.1f}% · {h.get('ram_used_mb',0)}/{h.get('ram_total_mb',0)} MB"})
+    checks.append({"name": "Temperature", "ok": h.get("temp", 0) < 80, "detail": f"{h.get('temp', 0):.1f}°C"})
+    return {"checks": checks, "all_ok": all(c["ok"] for c in checks)}
+
 # ── Settings ──────────────────────────────────────────────
 def load_config():
     if os.path.exists(CONFIG_PATH):
