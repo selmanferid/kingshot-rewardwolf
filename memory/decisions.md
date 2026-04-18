@@ -47,7 +47,8 @@
 - Keys: `dist_cmd` (pause/resume/cancel/empty), `dist_paused` (0/1)
 - Commands are checked **after** each player's sleep (~10min). Intentional: avoids interrupting mid-redemption.
 - Pause suspends in a 10s polling loop; cancel breaks the while loop (remaining players stay FAILED for retry).
-- `/retry` during active distribution: saves players as `RETRY_PENDING` (not FAILED), picked up by the running while loop immediately via `OR r.status = 'RETRY_PENDING'` in the query.
+- `retry` cmd (Telegram `/retry` or UI Retry button): saves players as `RETRY_PENDING`, picked up by running while loop via `OR r.status = 'RETRY_PENDING'`; `_dist_state["total"]` bumped.
+- UI Retry button is always visible (not gated on active distribution). Pause/Resume/Cancel only shown when active distribution exists.
 
 ## New Code Spam Prevention
 - `notified` column on `active_codes` (INTEGER DEFAULT 0)

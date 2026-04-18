@@ -24,13 +24,15 @@
 - First-run new player detection bug fixed: _last_player_check_ts=None skips first cycle
 - Log spam fixed: only log codes actually added to queue
 - Distribution status + trigger dropdown: only shows is_currently_active=1 codes
-- Distribution pause/resume/cancel via daemon_control table (web↔daemon IPC)
+- Distribution pause/resume/cancel/retry via daemon_control table (web↔daemon IPC)
   - Checked after each player sleep (~10min delay by design)
   - Pause: daemon enters 10s polling loop until resume/cancel
   - Cancel: loop breaks, remaining players stay FAILED for auto-retry
-- Telegram commands: /pause, /resume, /cancel — context-aware replies
+  - Retry: injects RETRY_PENDING players into running distribution loop
+- Telegram commands: /pause, /resume, /cancel — context-aware replies, all English
 - /dist command: shows PAUSED / Pause pending / Cancel pending states with hints
 - /help reorganized: Info / Distribution / System sections, all English
+- Distribution Status UI: Retry button (always visible) + Pause/Resume + Cancel (active dist only)
 
 ## Public API Endpoints (X-API-Key header required)
 - `GET /api/public/dashboard` — overall stats (delivered = success + already_used)

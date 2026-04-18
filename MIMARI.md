@@ -67,6 +67,7 @@ Dağıtım (distribution) aktifken Telegram komutları veya web arayüzü üzeri
 - **Pause:** `daemon_control.dist_cmd = 'pause'` yazılır. Daemon her oyuncu arasındaki sleep bitince bu değeri okur ve 10 saniyede bir polling yapan bir bekleme döngüsüne girer.
 - **Resume:** `dist_cmd = 'resume'` ve `dist_paused = '0'` yazılır. Daemon polling döngüsünden çıkar ve dağıtıma devam eder.
 - **Cancel:** `dist_cmd = 'cancel'` yazılır. Daemon sleep bitince döngüden çıkar; kalan oyuncular `FAILED` statüsünde kalır ve sonraki retry döngüsünde otomatik alınır.
+- **Retry:** `dist_cmd = 'retry'` yazılır. Daemon sleep bitince `RETRY_PENDING` statüsüyle DB'ye yazar; mevcut while döngüsü bu oyuncuları sıradaki iterasyonda işler.
 
 Komutların etkisi **anlık değildir** — mevcut oyuncu için olan sleep (~10dk) bittikten sonra işlenir. Bu tasarım bilerek böyledir; kritik bir işlemin ortasında kesilmemesi için tercih edilmiştir.
 
