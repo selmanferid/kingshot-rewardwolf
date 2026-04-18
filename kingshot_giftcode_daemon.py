@@ -2050,24 +2050,24 @@ def telegram_command_loop():
                 elif cmd == "/help":
                     send_telegram(
                         "🤖 <b>Available Commands:</b>\n\n"
-                        "<b>📊 Bilgi</b>\n"
-                        "/status — sistem durumu ve istatistikler\n"
-                        "/health — CPU, RAM, sıcaklık\n"
-                        "/dist — aktif dağıtım durumu\n"
-                        "/players — tüm oyuncular\n"
-                        "/codes — tüm kodlar\n"
-                        "/player ID — oyuncu detayı\n"
-                        "/logs — son 20 log satırı\n\n"
-                        "<b>🎁 Dağıtım Kontrol</b>\n"
-                        "/retry — başarısız oyuncuları yeniden dene\n"
-                        "/pause — dağıtımı duraklat\n"
-                        "/resume — dağıtımı devam ettir\n"
-                        "/cancel — dağıtımı iptal et\n\n"
-                        "<b>⚙️ Sistem</b>\n"
-                        "/restart — daemon'u yeniden başlat\n"
-                        "/rebuild — docker image'ı yeniden oluştur\n"
-                        "/chatid — bu chat'in ID'sini göster\n"
-                        "/help — bu mesaj",
+                        "<b>📊 Info</b>\n"
+                        "/status — system status &amp; stats\n"
+                        "/health — CPU, RAM, temperature\n"
+                        "/dist — active distribution status\n"
+                        "/players — list all players\n"
+                        "/codes — list all codes\n"
+                        "/player ID — player details\n"
+                        "/logs — last 20 log lines\n\n"
+                        "<b>🎁 Distribution</b>\n"
+                        "/retry — retry failed players\n"
+                        "/pause — pause distribution\n"
+                        "/resume — resume distribution\n"
+                        "/cancel — cancel distribution\n\n"
+                        "<b>⚙️ System</b>\n"
+                        "/restart — restart the daemon\n"
+                        "/rebuild — rebuild docker image\n"
+                        "/chatid — show this chat's ID\n"
+                        "/help — show this message",
                         chat_id
                     )
 
