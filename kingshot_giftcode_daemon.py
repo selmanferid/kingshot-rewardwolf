@@ -74,7 +74,8 @@ _telegram_offset = 0
 _code_queue = queue.Queue()  # Yeni kodlar için kuyruk
 _last_summary_date = None
 _last_health_alert = {}
-_last_name_sync = None
+_last_name_sync        = None
+_last_player_check_ts  = None  # Yeni oyuncu tespiti için
 
 # Active distribution state (for web UI and /status command)
 _dist_state = {
@@ -386,6 +387,17 @@ def init_db():
         )
     """)
 
+    # Player name history — eski isimleri kaydeder
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS player_name_history (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            player_id   TEXT NOT NULL,
+            username    TEXT NOT NULL,
+            recorded_at TEXT NOT NULL
+        )
+    """)
+    c.execute("CREATE INDEX IF NOT EXISTS idx_name_history_player ON player_name_history(player_id)")
+
     conn.commit()
     conn.close()
     log.info("✅ Database initialized.")
@@ -539,7 +551,7 @@ def get_failed_players(code):
     retry_after = (datetime.now(timezone.utc) - timedelta(hours=CONFIG["RETRY_DELAY_HOURS"])).isoformat()
     c.execute("""
         SELECT player_id, username, retry_count FROM redemptions
-        WHERE code=? AND status='FAILED' AND created_at <= ? AND retry_count < 3
+        WHERE code=? AND status IN ('FAILED', 'UNKNOWN') AND created_at <= ? AND retry_count < 3
     """, (code, retry_after))
     rows = c.fetchall()
     conn.close()
@@ -974,6 +986,8 @@ def parse_message(msg_text):
         return "ALREADY_USED", msg_text
     if any(x in msg_lower for x in ["not found", "invalid", "expired", "wrong", "case-sensitive"]):
         return "INVALID_CODE", msg_text
+    if any(x in msg_lower for x in ["claim limit", "unable to claim", "cannot claim", "limit reached"]):
+        return "FAILED", msg_text
     if any(x in msg_lower for x in ["server busy", "please try again later", "try again later", "too many", "service unavailable", "please log in", "log in to relevant", "character before redemption"]):
         return "SERVER_BUSY", msg_text
     return "UNKNOWN", msg_text
@@ -1415,6 +1429,12 @@ def sync_player_names():
             if not name or name == old_name:
                 continue
             conn = db_connect()
+            # Eski ismi geçmişe kaydet
+            if old_name:
+                conn.execute(
+                    "INSERT INTO player_name_history (player_id, username, recorded_at) VALUES (?, ?, ?)",
+                    (pid, old_name, datetime.now(timezone.utc).isoformat())
+                )
             conn.execute("UPDATE players SET username=? WHERE player_id=?", (name, pid))
             conn.commit()
             conn.close()
@@ -1935,12 +1955,39 @@ def main():
                     send_daily_summary()
 
                 # Background name sync every 15 minutes
-                global _last_name_sync
+                global _last_name_sync, _last_player_check_ts
                 now_ts = time.time()
                 if _last_name_sync is None or now_ts - _last_name_sync >= NAME_SYNC_INTERVAL:
                     log.info("🔄 Running background player name sync...")
                     sync_player_names()
                     _last_name_sync = now_ts
+
+                # Yeni oyuncu tespiti — expire olmamış aktif kodlara is_completed sıfırla
+                now_iso = datetime.now(timezone.utc).isoformat()
+                check_since = _last_player_check_ts or "1970-01-01T00:00:00+00:00"
+                try:
+                    conn = db_connect()
+                    new_players = conn.execute(
+                        "SELECT player_id FROM players WHERE removed_at IS NULL AND active_since > ?",
+                        (check_since,)
+                    ).fetchall()
+                    if new_players:
+                        pids = [r["player_id"] for r in new_players]
+                        log.info(f"🆕 {len(pids)} new player(s) detected: {pids}")
+                        # Süresi geçmemiş, tamamlanmış kodları sıfırla → yeni oyuncu için dağıtım yapılacak
+                        conn.execute("""
+                            UPDATE active_codes
+                            SET is_completed=0
+                            WHERE is_currently_active=1
+                              AND is_completed=1
+                              AND (expires_at IS NULL OR expires_at > ?)
+                        """, (now_iso,))
+                        conn.commit()
+                        log.info("♻️ Completed codes reset for new player distribution")
+                    conn.close()
+                except Exception as e:
+                    log.warning(f"New player check error: {e}")
+                _last_player_check_ts = now_iso
 
                 _is_first_run = False
 

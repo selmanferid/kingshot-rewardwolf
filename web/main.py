@@ -305,8 +305,17 @@ def player_history(player_id: str, _=Depends(verify_token)):
         WHERE r.player_id=? ORDER BY r.created_at DESC
     """, (player_id,))
     history = [dict(r) for r in c.fetchall()]
+    # İsim geçmişi (tablo yoksa boş döner)
+    try:
+        c.execute(
+            "SELECT username, recorded_at FROM player_name_history WHERE player_id=? ORDER BY recorded_at DESC",
+            (player_id,)
+        )
+        name_history = [dict(r) for r in c.fetchall()]
+    except Exception:
+        name_history = []
     conn.close()
-    return {"player": player, "history": history}
+    return {"player": player, "history": history, "name_history": name_history}
 
 # ── Codes ─────────────────────────────────────────────────
 @app.get("/api/codes")

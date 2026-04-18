@@ -1443,14 +1443,35 @@ async function openPlayerHistory(pid) {
       <td class="font-mono text-[11px] text-out">${fmtDate(r.created_at)}</td>
     </tr>`;
   }).join('');
-  document.getElementById('modal-player-body').innerHTML = d.history.length
-    ? `<table class="w-full"><thead><tr class="border-b border-white/5">
-        <th class="pb-3 text-left font-mono text-[10px] uppercase tracking-widest text-out">Code</th>
-        <th class="pb-3 text-left font-mono text-[10px] uppercase tracking-widest text-out">Status</th>
-        <th class="pb-3 text-left font-mono text-[10px] uppercase tracking-widest text-out">Message</th>
-        <th class="pb-3 text-left font-mono text-[10px] uppercase tracking-widest text-out">Date</th>
-      </tr></thead><tbody>${rows}</tbody></table>`
-    : '<div class="font-mono text-sm text-out">No redemption history yet.</div>';
+  // İsim geçmişi
+  const nameHistoryHtml = (d.name_history && d.name_history.length)
+    ? `<div class="mb-5">
+        <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out/60 mb-2">Name History</p>
+        <div class="flex flex-wrap gap-2">
+          ${d.name_history.map(n =>
+            `<span class="inline-flex items-center gap-1.5 bg-slh border border-white/5 rounded-lg px-2.5 py-1">
+              <span class="font-mono text-xs text-os">${esc(n.username)}</span>
+              <span class="font-mono text-[10px] text-out/40">${fmtDate(n.recorded_at)}</span>
+            </span>`
+          ).join('')}
+        </div>
+      </div>`
+    : '';
+
+  // Ödül geçmişi
+  const redemptionHtml = d.history.length
+    ? `<div>
+        <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out/60 mb-2">Redemption History</p>
+        <table class="w-full"><thead><tr class="border-b border-white/5">
+          <th class="pb-3 text-left font-mono text-[10px] uppercase tracking-widest text-out">Code</th>
+          <th class="pb-3 text-left font-mono text-[10px] uppercase tracking-widest text-out">Status</th>
+          <th class="pb-3 text-left font-mono text-[10px] uppercase tracking-widest text-out">Message</th>
+          <th class="pb-3 text-left font-mono text-[10px] uppercase tracking-widest text-out">Date</th>
+        </tr></thead><tbody>${rows}</tbody></table>
+      </div>`
+    : '<div class="font-mono text-sm text-out/60">No redemption history yet.</div>';
+
+  document.getElementById('modal-player-body').innerHTML = nameHistoryHtml + redemptionHtml;
 }
 
 function openAddPlayer() {
