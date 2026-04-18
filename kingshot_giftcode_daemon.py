@@ -1963,6 +1963,43 @@ def telegram_command_loop():
                     else:
                         send_telegram("✅ No players to retry — all are SUCCESS or ALREADY_USED.", chat_id)
 
+                elif cmd == "/pause":
+                    if not _dist_state.get("active"):
+                        send_telegram("ℹ️ Şu an aktif dağıtım yok.", chat_id)
+                    elif _dist_state.get("paused"):
+                        send_telegram("⏸ Dağıtım zaten duraklatılmış.\n/resume ile devam ettir.", chat_id)
+                    else:
+                        ctrl_set("dist_cmd", "pause")
+                        log.info("⏸ Pause requested via Telegram.")
+                        send_telegram(
+                            f"⏸ <b>Duraklat komutu gönderildi.</b>\n"
+                            f"Mevcut oyuncu bittikten sonra (~10dk) etkili olur.\n"
+                            f"Devam ettirmek için: /resume", chat_id
+                        )
+
+                elif cmd == "/resume":
+                    if not _dist_state.get("active"):
+                        send_telegram("ℹ️ Şu an aktif dağıtım yok.", chat_id)
+                    elif not _dist_state.get("paused"):
+                        send_telegram("▶️ Dağıtım zaten devam ediyor.", chat_id)
+                    else:
+                        ctrl_set("dist_cmd", "resume")
+                        ctrl_set("dist_paused", "0")
+                        log.info("▶ Resume requested via Telegram.")
+                        send_telegram("▶️ <b>Devam et komutu gönderildi.</b>", chat_id)
+
+                elif cmd == "/cancel":
+                    if not _dist_state.get("active"):
+                        send_telegram("ℹ️ Şu an aktif dağıtım yok.", chat_id)
+                    else:
+                        ctrl_set("dist_cmd", "cancel")
+                        log.info("⏹ Cancel requested via Telegram.")
+                        send_telegram(
+                            f"⏹ <b>İptal komutu gönderildi.</b>\n"
+                            f"Mevcut oyuncu bittikten sonra (~10dk) dağıtım durur.\n"
+                            f"Kalan oyuncular retry kuyruğuna alınır.", chat_id
+                        )
+
                 elif cmd == "/restart":
                     send_telegram("🔄 <b>Restarting daemon...</b>", chat_id)
                     log.info("🔄 Restart requested via Telegram.")
@@ -2013,18 +2050,24 @@ def telegram_command_loop():
                 elif cmd == "/help":
                     send_telegram(
                         "🤖 <b>Available Commands:</b>\n\n"
-                        "/status — system status & stats\n"
-                        "/health — CPU, RAM, temperature\n"
-                        "/dist — active distribution status\n"
-                        "/players — list all players\n"
-                        "/codes — list all codes with details\n"
-                        "/player ID — specific player stats\n"
-                        "/logs — last 20 log lines\n"
-                        "/retry — retry failed players\n"
-                        "/restart — restart the daemon\n"
-                        "/rebuild — rebuild docker image\n"
-                        "/chatid — show this chat's ID\n"
-                        "/help — show this message",
+                        "<b>📊 Bilgi</b>\n"
+                        "/status — sistem durumu ve istatistikler\n"
+                        "/health — CPU, RAM, sıcaklık\n"
+                        "/dist — aktif dağıtım durumu\n"
+                        "/players — tüm oyuncular\n"
+                        "/codes — tüm kodlar\n"
+                        "/player ID — oyuncu detayı\n"
+                        "/logs — son 20 log satırı\n\n"
+                        "<b>🎁 Dağıtım Kontrol</b>\n"
+                        "/retry — başarısız oyuncuları yeniden dene\n"
+                        "/pause — dağıtımı duraklat\n"
+                        "/resume — dağıtımı devam ettir\n"
+                        "/cancel — dağıtımı iptal et\n\n"
+                        "<b>⚙️ Sistem</b>\n"
+                        "/restart — daemon'u yeniden başlat\n"
+                        "/rebuild — docker image'ı yeniden oluştur\n"
+                        "/chatid — bu chat'in ID'sini göster\n"
+                        "/help — bu mesaj",
                         chat_id
                     )
 
