@@ -548,9 +548,9 @@ def distribution_status(_=Depends(verify_token)):
             COUNT(r.player_id) as processed
         FROM active_codes ac
         LEFT JOIN redemptions r ON r.code = ac.code
-        WHERE ac.is_currently_active = 1
+        WHERE (ac.expires_at IS NULL OR ac.expires_at > datetime('now'))
         GROUP BY ac.code
-        ORDER BY ac.is_completed ASC, ac.created_at DESC
+        ORDER BY ac.is_currently_active DESC, ac.is_completed ASC, ac.created_at DESC
     """).fetchall()
     conn.close()
     return [dict(r) for r in rows]
