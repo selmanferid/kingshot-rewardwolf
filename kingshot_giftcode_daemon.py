@@ -1353,13 +1353,14 @@ def redeem_code_for_all(gift_code):
         return []
 
     while True:
-        # Fetch the next player that hasn't been processed (or was SERVER_BUSY)
+        # Fetch the next player that hasn't been processed (or was SERVER_BUSY / RETRY_PENDING)
         try:
             conn = db_connect()
             row = conn.execute("""
-                SELECT p.* FROM players p
+                SELECT p.*, COALESCE(r.retry_count, 0) AS r_retry_count FROM players p
                 LEFT JOIN redemptions r ON r.player_id = p.player_id AND r.code = ?
-                WHERE p.removed_at IS NULL AND (r.status IS NULL OR r.status = 'SERVER_BUSY')
+                WHERE p.removed_at IS NULL
+                  AND (r.status IS NULL OR r.status IN ('SERVER_BUSY', 'RETRY_PENDING'))
                 ORDER BY p.is_vip DESC, p.role DESC, p.username ASC
                 LIMIT 1
             """, (gift_code,)).fetchone()
@@ -1372,12 +1373,13 @@ def redeem_code_for_all(gift_code):
             log.info("✅ No more players to process. Distribution complete.")
             break
 
-        player_id = row["player_id"]
-        username  = row["username"] or player_id
-        is_vip    = bool(row["is_vip"])
-        role      = row["role"] or "R1"
-        vip_tag   = " ⭐" if is_vip else ""
-        role_tag  = f" [{role}]" if role != "R1" else ""
+        player_id    = row["player_id"]
+        username     = row["username"] or player_id
+        is_vip       = bool(row["is_vip"])
+        role         = row["role"] or "R1"
+        vip_tag      = " ⭐" if is_vip else ""
+        role_tag     = f" [{role}]" if role != "R1" else ""
+        r_retry_count = row["r_retry_count"]  # 0 for first-timers, N for retry players
 
         if code_expires_at and datetime.now(timezone.utc) >= code_expires_at:
             log.warning(f"⏰ Code {gift_code} has expired (UTC). Stopping distribution.")
@@ -1395,7 +1397,8 @@ def redeem_code_for_all(gift_code):
         try:
             result = redeem_code_for_player(browser, player_id, username, gift_code)
             results.append(result)
-            save_redemption(gift_code, player_id, username, result["status"], result["message"])
+            save_redemption(gift_code, player_id, username, result["status"], result["message"],
+                            r_retry_count + 1 if r_retry_count > 0 else 0)
             processed += 1
             _dist_state["current_index"] = processed
 
@@ -1412,8 +1415,9 @@ def redeem_code_for_all(gift_code):
 
             tg_extra = f"\n🔄 Will retry in {CONFIG['RETRY_DELAY_HOURS']} hours" if status == "FAILED" else ""
             delivered = _dist_state["success"] + _dist_state["already_used"]
+            live_total = _dist_state["total"]  # updated dynamically if /retry injects players
             send_telegram(
-                f"{status_icon} <b>[{processed}/{total}] {username or player_id}{vip_tag}</b>\n"
+                f"{status_icon} <b>[{processed}/{live_total}] {username or player_id}{vip_tag}</b>\n"
                 f"Code: <code>{gift_code}</code>\n"
                 f"Status: {status}\n"
                 f"Message: {result['message']}\n"
@@ -1846,18 +1850,44 @@ def telegram_command_loop():
                 elif cmd == "/retry":
                     send_telegram("🔁 <b>Manual retry started...</b>", chat_id)
                     active_codes_now, _ = fetch_active_gift_codes()
-                    retried_total = 0
+                    retried_total  = 0
+                    injected_total = 0
+                    queued_total   = 0
                     for rc in active_codes_now:
                         rows = get_failed_players(rc, ignore_delay=True)
-                        if rows:
-                            log.info(f"🔁 Manual retry: {len(rows)} player(s) for {rc}")
+                        if not rows:
+                            continue
+                        log.info(f"🔁 Manual retry: {len(rows)} player(s) for {rc}")
+                        currently_distributing = (
+                            _dist_state.get("active") and _dist_state.get("code") == rc
+                        )
+                        if currently_distributing:
+                            # Inject directly into the running distribution loop
+                            for pid, uname, retry_cnt in rows:
+                                save_redemption(rc, pid, uname, "RETRY_PENDING",
+                                                "Injected by /retry", retry_cnt)
+                            _dist_state["total"] += len(rows)
+                            injected_total += len(rows)
+                            log.info(f"  ↩️ Injected {len(rows)} player(s) into active distribution (new total: {_dist_state['total']})")
+                        else:
+                            # Not currently distributing — mark FAILED and queue the code
                             for pid, uname, retry_cnt in rows:
                                 save_redemption(rc, pid, uname, "FAILED", "Manual retry queued", retry_cnt)
-                            retried_total += len(rows)
                             if rc not in list(_code_queue.queue):
                                 _code_queue.put(rc)
+                            queued_total += len(rows)
+                        retried_total += len(rows)
+
                     if retried_total:
-                        send_telegram(f"🔁 <b>Retrying {retried_total} player(s)</b> across {len(active_codes_now)} code(s).", chat_id)
+                        parts = []
+                        if injected_total:
+                            parts.append(f"↩️ <b>{injected_total}</b> injected into active distribution")
+                        if queued_total:
+                            parts.append(f"🔁 <b>{queued_total}</b> queued for next run")
+                        send_telegram(
+                            f"🔁 <b>Retrying {retried_total} player(s)</b>\n" + "\n".join(parts),
+                            chat_id
+                        )
                     else:
                         send_telegram("✅ No players to retry — all are SUCCESS or ALREADY_USED.", chat_id)
 
