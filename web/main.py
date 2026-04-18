@@ -585,7 +585,12 @@ def distribution_resume(_=Depends(verify_token)):
 @app.post("/api/distribution/cancel")
 def distribution_cancel(_=Depends(verify_token)):
     _ctrl_set("dist_cmd", "cancel")
-    return {"ok": True, "message": "İptal komutu gönderildi"}
+    return {"ok": True, "message": "Cancel command sent"}
+
+@app.post("/api/distribution/retry")
+def distribution_retry(_=Depends(verify_token)):
+    _ctrl_set("dist_cmd", "retry")
+    return {"ok": True, "message": "Retry command sent"}
 
 class AddCodeBody(BaseModel):
     code: str

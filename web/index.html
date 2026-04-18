@@ -507,6 +507,11 @@ input:not([class]),select:not([class]),textarea:not([class]){
           <div class="flex items-center justify-between mb-4">
             <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out">Distribution Status</p>
             <div class="flex items-center gap-2">
+              <!-- Retry — her zaman görünür -->
+              <button onclick="distRetry()"
+                class="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-head font-bold bg-out/10 text-out hover:bg-out/20 transition-all sp active:scale-[.98]">
+                <span class="material-symbols-outlined text-[13px]">replay</span>Retry
+              </button>
               <!-- Kontrol butonları — aktif dağıtım varsa görünür -->
               <div id="dist-controls" class="hidden flex items-center gap-2">
                 <button id="btn-pause-resume" onclick="distPauseResume()"
@@ -514,7 +519,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
                 </button>
                 <button onclick="distCancel()"
                   class="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-head font-bold bg-e/20 text-e hover:bg-e/30 transition-all sp active:scale-[.98]">
-                  <span class="material-symbols-outlined text-[13px]">stop</span>İptal
+                  <span class="material-symbols-outlined text-[13px]">stop</span>Cancel
                 </button>
               </div>
               <button onclick="loadDistributionStatus()" class="text-out/40 hover:text-out transition-colors sp">
@@ -1272,11 +1277,18 @@ async function distPauseResume() {
 }
 
 async function distCancel() {
-  if (!confirm('Dağıtım iptal edilsin mi? Kalan oyuncular sonraki retry döngüsünde alınır.')) return;
+  if (!confirm('Cancel distribution? Remaining players will be retried automatically.')) return;
   try {
     const d = await apiFetch('/distribution/cancel', { method:'POST' });
-    toast(d.message || 'İptal komutu gönderildi');
+    toast(d.message || 'Cancel command sent');
     setTimeout(loadDistributionStatus, 500);
+  } catch(e) { toast('Error: ' + e.message, true); }
+}
+
+async function distRetry() {
+  try {
+    const d = await apiFetch('/distribution/retry', { method:'POST' });
+    toast(d.message || 'Retry command sent');
   } catch(e) { toast('Error: ' + e.message, true); }
 }
 

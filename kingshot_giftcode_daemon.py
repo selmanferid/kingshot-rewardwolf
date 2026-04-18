@@ -1461,9 +1461,20 @@ def redeem_code_for_all(gift_code):
             log.info(f"  ⏳ Next player in {delay}s (~{delay//60}min)...")
             time.sleep(delay)
 
-            # ── Kontrol: iptal veya duraklat ──────────────────
+            # ── Kontrol: pause / resume / cancel / retry ──────
             cmd = ctrl_get("dist_cmd")
-            if cmd == "cancel":
+            if cmd == "retry":
+                ctrl_set("dist_cmd", "")
+                rows = get_failed_players(gift_code, ignore_delay=True)
+                if rows:
+                    for pid, uname, retry_cnt in rows:
+                        save_redemption(gift_code, pid, uname, "RETRY_PENDING", "Injected by UI retry", retry_cnt)
+                    _dist_state["total"] += len(rows)
+                    log.info(f"↩️ UI retry: {len(rows)} player(s) injected (new total: {_dist_state['total']})")
+                    send_telegram(f"↩️ <b>Retry:</b> {len(rows)} player(s) injected into active distribution.")
+                else:
+                    log.info("↩️ UI retry: no players to retry.")
+            elif cmd == "cancel":
                 ctrl_set("dist_cmd", "")
                 ctrl_set("dist_paused", "0")
                 _dist_state["paused"] = False
