@@ -1,6 +1,6 @@
 # Current State
 
-**Last updated:** 2026-04-13
+**Last updated:** 2026-04-18
 
 ## System Status
 - Production running on Raspberry Pi 4 via Docker Compose
@@ -23,6 +23,16 @@
 - `/chatid` bot command added; every incoming message logs chat_id to daemon log
 - Gift codes now copyable in Telegram (`<pre>` block) notifications
 - Discord notifications use structured embeds (gold/green/red/blue per event), @everyone on new_code + expiry_warning
+- player_name_history table added; player modal shows name change history
+- Code active status based solely on expires_at (future → active, past/null+inactive → expired)
+- New player auto-distribution: newly added players trigger reset of completed active codes
+- "Claim limit reached" → FAILED in parse_message()
+- Automatic null-expiry refresh: refresh_null_expiries() runs every cycle
+- VIP777 EXPIRED bug fixed: future expires_at always takes priority in isCodeExpired()
+- Rewardwolf Control page overhauled: 5-row layout, distribution status, manual add, uptime, channel message sender, system check, test-all-channels
+- get_failed_players() retry logic: excludes SUCCESS, ALREADY_USED, INVALID_CODE, SERVER_BUSY; ignore_delay=True for /retry command
+- First-run new player detection bug fixed: _last_player_check_ts=None → just set timestamp, no reset
+- Log spam fixed: only log codes actually added to queue (newly_queued); already-queued codes log ⏳
 
 ## Public API Endpoints (X-API-Key header required)
 - `GET /api/public/dashboard` — overall stats (delivered = success + already_used)

@@ -545,14 +545,30 @@ def save_redemption(code, player_id, username, status, message, retry_count=0):
     conn.commit()
     conn.close()
 
-def get_failed_players(code):
+def get_failed_players(code, ignore_delay=False):
+    """
+    SUCCESS ve ALREADY_USED dışındaki tüm statüleri retry kuyruğuna alır.
+    INVALID_CODE hariç — kodun kendisi geçersiz, retry işe yaramaz.
+    ignore_delay=True → manuel /retry için zaman kısıtlaması yok.
+    """
     conn = db_connect()
     c = conn.cursor()
-    retry_after = (datetime.now(timezone.utc) - timedelta(hours=CONFIG["RETRY_DELAY_HOURS"])).isoformat()
-    c.execute("""
-        SELECT player_id, username, retry_count FROM redemptions
-        WHERE code=? AND status IN ('FAILED', 'UNKNOWN') AND created_at <= ? AND retry_count < 3
-    """, (code, retry_after))
+    if ignore_delay:
+        c.execute("""
+            SELECT player_id, username, retry_count FROM redemptions
+            WHERE code=?
+              AND status NOT IN ('SUCCESS', 'ALREADY_USED', 'INVALID_CODE', 'SERVER_BUSY')
+              AND retry_count < 3
+        """, (code,))
+    else:
+        retry_after = (datetime.now(timezone.utc) - timedelta(hours=CONFIG["RETRY_DELAY_HOURS"])).isoformat()
+        c.execute("""
+            SELECT player_id, username, retry_count FROM redemptions
+            WHERE code=?
+              AND status NOT IN ('SUCCESS', 'ALREADY_USED', 'INVALID_CODE', 'SERVER_BUSY')
+              AND created_at <= ?
+              AND retry_count < 3
+        """, (code, retry_after))
     rows = c.fetchall()
     conn.close()
     return [(r["player_id"], r["username"], r["retry_count"]) for r in rows]
@@ -1828,7 +1844,22 @@ def telegram_command_loop():
                         send_telegram(f"❌ Failed to read logs: {e}", chat_id)
 
                 elif cmd == "/retry":
-                    send_telegram("🔁 Retry will trigger on next check cycle.", chat_id)
+                    send_telegram("🔁 <b>Manual retry started...</b>", chat_id)
+                    active_codes_now, _ = fetch_active_gift_codes()
+                    retried_total = 0
+                    for rc in active_codes_now:
+                        rows = get_failed_players(rc, ignore_delay=True)
+                        if rows:
+                            log.info(f"🔁 Manual retry: {len(rows)} player(s) for {rc}")
+                            for pid, uname, retry_cnt in rows:
+                                save_redemption(rc, pid, uname, "FAILED", "Manual retry queued", retry_cnt)
+                            retried_total += len(rows)
+                            if rc not in list(_code_queue.queue):
+                                _code_queue.put(rc)
+                    if retried_total:
+                        send_telegram(f"🔁 <b>Retrying {retried_total} player(s)</b> across {len(active_codes_now)} code(s).", chat_id)
+                    else:
+                        send_telegram("✅ No players to retry — all are SUCCESS or ALREADY_USED.", chat_id)
 
                 elif cmd == "/restart":
                     send_telegram("🔄 <b>Restarting daemon...</b>", chat_id)
@@ -2003,11 +2034,10 @@ def main():
                 incomplete = [c for c in active_codes if not is_code_completed(c)]
                 if not incomplete:
                     log.info("  ℹ️ No pending codes.")
-                else:
-                    log.info(f"  🎉 {len(incomplete)} new/incomplete code(s): {incomplete}")
 
+                newly_queued = []
                 for code in incomplete:
-                    queued        = list(_code_queue.queue)
+                    queued         = list(_code_queue.queue)
                     currently_dist = (_dist_state.get("active") and _dist_state.get("code") == code)
 
                     # Telegram bildirimi — sadece daha önce hiç bildirilmemiş kodlar için
@@ -2029,6 +2059,14 @@ def main():
                     # Kuyruğa ekleme — kuyrukta yoksa VE şu an dağıtılmıyorsa
                     if code not in queued and not currently_dist:
                         _code_queue.put(code)
+                        newly_queued.append(code)
+
+                if newly_queued:
+                    log.info(f"  ➕ Queued for distribution: {newly_queued}")
+                elif incomplete:
+                    in_progress = [c for c in incomplete if _dist_state.get("active") and _dist_state.get("code") == c]
+                    waiting     = [c for c in incomplete if c in list(_code_queue.queue)]
+                    log.info(f"  ⏳ In progress: {in_progress or waiting} — already queued/distributing")
 
                 check_health_alerts()
                 now = datetime.now(timezone.utc)
@@ -2043,32 +2081,34 @@ def main():
                     sync_player_names()
                     _last_name_sync = now_ts
 
-                # Yeni oyuncu tespiti — expire olmamış aktif kodlara is_completed sıfırla
+                # Yeni oyuncu tespiti — ilk çalışmada sadece timestamp'i kaydet, sıfırlama yapma
                 now_iso = datetime.now(timezone.utc).isoformat()
-                check_since = _last_player_check_ts or "1970-01-01T00:00:00+00:00"
-                try:
-                    conn = db_connect()
-                    new_players = conn.execute(
-                        "SELECT player_id FROM players WHERE removed_at IS NULL AND active_since > ?",
-                        (check_since,)
-                    ).fetchall()
-                    if new_players:
-                        pids = [r["player_id"] for r in new_players]
-                        log.info(f"🆕 {len(pids)} new player(s) detected: {pids}")
-                        # Süresi geçmemiş, tamamlanmış kodları sıfırla → yeni oyuncu için dağıtım yapılacak
-                        conn.execute("""
-                            UPDATE active_codes
-                            SET is_completed=0
-                            WHERE is_currently_active=1
-                              AND is_completed=1
-                              AND (expires_at IS NULL OR expires_at > ?)
-                        """, (now_iso,))
-                        conn.commit()
-                        log.info("♻️ Completed codes reset for new player distribution")
-                    conn.close()
-                except Exception as e:
-                    log.warning(f"New player check error: {e}")
-                _last_player_check_ts = now_iso
+                if _last_player_check_ts is None:
+                    # İlk çalışma: mevcut tüm oyuncular "eski", sadece zamanı kaydet
+                    _last_player_check_ts = now_iso
+                else:
+                    try:
+                        conn = db_connect()
+                        new_players = conn.execute(
+                            "SELECT player_id FROM players WHERE removed_at IS NULL AND active_since > ?",
+                            (_last_player_check_ts,)
+                        ).fetchall()
+                        if new_players:
+                            pids = [r["player_id"] for r in new_players]
+                            log.info(f"🆕 {len(pids)} new player(s) detected: {pids}")
+                            conn.execute("""
+                                UPDATE active_codes
+                                SET is_completed=0
+                                WHERE is_currently_active=1
+                                  AND is_completed=1
+                                  AND (expires_at IS NULL OR expires_at > ?)
+                            """, (now_iso,))
+                            conn.commit()
+                            log.info("♻️ Completed codes reset for new player distribution")
+                        conn.close()
+                    except Exception as e:
+                        log.warning(f"New player check error: {e}")
+                    _last_player_check_ts = now_iso
 
                 _is_first_run = False
 
