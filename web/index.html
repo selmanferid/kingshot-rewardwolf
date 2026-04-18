@@ -1216,7 +1216,8 @@ async function loadDistributionStatus() {
       </div>`;
     }).join('<div class="border-t border-white/5 my-3"></div>');
     if (sel) sel.innerHTML = '<option value="">Select active code...</option>' +
-      codes.map(c => `<option value="${c.code}">${c.code}${c.is_completed ? ' ✓' : ''}${!c.is_currently_active ? ' (offline)' : ''}</option>`).join('');
+      codes.filter(c => c.is_currently_active)
+           .map(c => `<option value="${c.code}">${c.code}${c.is_completed ? ' ✓' : ''}</option>`).join('');
   } catch(e) {}
 }
 
