@@ -1187,7 +1187,7 @@ async function loadDistributionStatus() {
       const total     = c.player_count || 1;
       const pct       = Math.min(Math.round(delivered / total * 100), 100);
       const barCol    = c.is_completed ? 'bg-out/20' : pct > 80 ? 'bg-t' : 'bg-pc';
-      const expired   = c.expires_at && new Date(c.expires_at) < new Date();
+      const expired   = isCodeExpired(c);
       const badge     = expired
         ? '<span class="bdg bdg-gray text-[9px]">Expired</span>'
         : c.is_completed
@@ -1961,8 +1961,13 @@ function copyText(text) {
 }
 
 function isCodeExpired(c) {
-  if (!c.is_currently_active) return true;  // API listesinden düştü = expire
-  if (c.expires_at && new Date(c.expires_at) < new Date()) return true;
+  const now = new Date();
+  // Gelecekte bir expiry varsa kesinlikle expired değil
+  if (c.expires_at && new Date(c.expires_at) > now) return false;
+  // Geçmiş bir expiry varsa expired
+  if (c.expires_at && new Date(c.expires_at) <= now) return true;
+  // expires_at yoksa ve API'den düşmüşse expired say
+  if (!c.expires_at && !c.is_currently_active) return true;
   return false;
 }
 function codeBadge(c) {
