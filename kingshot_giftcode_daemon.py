@@ -1468,14 +1468,14 @@ def redeem_code_for_all(gift_code):
                 ctrl_set("dist_paused", "0")
                 _dist_state["paused"] = False
                 log.info("⏹ Distribution cancelled via control panel.")
-                send_telegram(f"⏹ <b>Dağıtım iptal edildi.</b>\nKod: <code>{gift_code}</code>\n{processed} oyuncu işlendi.")
+                send_telegram(f"⏹ <b>Distribution cancelled.</b>\nCode: <code>{gift_code}</code>\n{processed} player(s) processed.")
                 break
             elif cmd == "pause":
                 ctrl_set("dist_cmd", "")
                 ctrl_set("dist_paused", "1")
                 _dist_state["paused"] = True
                 log.info("⏸ Distribution paused. Waiting for resume or cancel...")
-                send_telegram(f"⏸ <b>Dağıtım duraklatıldı.</b>\nKod: <code>{gift_code}</code>\n{processed}/{_dist_state['total']} işlendi.")
+                send_telegram(f"⏸ <b>Distribution paused.</b>\nCode: <code>{gift_code}</code>\n{processed}/{_dist_state['total']} processed.")
                 while True:
                     time.sleep(10)
                     resume_cmd = ctrl_get("dist_cmd")
@@ -1484,14 +1484,14 @@ def redeem_code_for_all(gift_code):
                         ctrl_set("dist_paused", "0")
                         _dist_state["paused"] = False
                         log.info("▶ Distribution resumed.")
-                        send_telegram(f"▶ <b>Dağıtım devam ediyor.</b>\nKod: <code>{gift_code}</code>")
+                        send_telegram(f"▶ <b>Distribution resumed.</b>\nCode: <code>{gift_code}</code>")
                         break
                     elif resume_cmd == "cancel":
                         ctrl_set("dist_cmd", "")
                         ctrl_set("dist_paused", "0")
                         _dist_state["paused"] = False
                         log.info("⏹ Distribution cancelled while paused.")
-                        send_telegram(f"⏹ <b>Dağıtım iptal edildi (duraklatılmışken).</b>\nKod: <code>{gift_code}</code>")
+                        send_telegram(f"⏹ <b>Distribution cancelled (was paused).</b>\nCode: <code>{gift_code}</code>")
                         # Dış döngüyü kırmak için flag kullan
                         _dist_state["cancelled"] = True
                         break
@@ -1965,39 +1965,39 @@ def telegram_command_loop():
 
                 elif cmd == "/pause":
                     if not _dist_state.get("active"):
-                        send_telegram("ℹ️ Şu an aktif dağıtım yok.", chat_id)
+                        send_telegram("ℹ️ No active distribution.", chat_id)
                     elif _dist_state.get("paused"):
-                        send_telegram("⏸ Dağıtım zaten duraklatılmış.\n/resume ile devam ettir.", chat_id)
+                        send_telegram("⏸ Distribution is already paused.\nUse /resume to continue.", chat_id)
                     else:
                         ctrl_set("dist_cmd", "pause")
                         log.info("⏸ Pause requested via Telegram.")
                         send_telegram(
-                            f"⏸ <b>Duraklat komutu gönderildi.</b>\n"
-                            f"Mevcut oyuncu bittikten sonra (~10dk) etkili olur.\n"
-                            f"Devam ettirmek için: /resume", chat_id
+                            f"⏸ <b>Pause command sent.</b>\n"
+                            f"Takes effect after the current player (~10 min).\n"
+                            f"Use /resume to continue.", chat_id
                         )
 
                 elif cmd == "/resume":
                     if not _dist_state.get("active"):
-                        send_telegram("ℹ️ Şu an aktif dağıtım yok.", chat_id)
+                        send_telegram("ℹ️ No active distribution.", chat_id)
                     elif not _dist_state.get("paused"):
-                        send_telegram("▶️ Dağıtım zaten devam ediyor.", chat_id)
+                        send_telegram("▶️ Distribution is already running.", chat_id)
                     else:
                         ctrl_set("dist_cmd", "resume")
                         ctrl_set("dist_paused", "0")
                         log.info("▶ Resume requested via Telegram.")
-                        send_telegram("▶️ <b>Devam et komutu gönderildi.</b>", chat_id)
+                        send_telegram("▶️ <b>Resume command sent.</b>", chat_id)
 
                 elif cmd == "/cancel":
                     if not _dist_state.get("active"):
-                        send_telegram("ℹ️ Şu an aktif dağıtım yok.", chat_id)
+                        send_telegram("ℹ️ No active distribution.", chat_id)
                     else:
                         ctrl_set("dist_cmd", "cancel")
                         log.info("⏹ Cancel requested via Telegram.")
                         send_telegram(
-                            f"⏹ <b>İptal komutu gönderildi.</b>\n"
-                            f"Mevcut oyuncu bittikten sonra (~10dk) dağıtım durur.\n"
-                            f"Kalan oyuncular retry kuyruğuna alınır.", chat_id
+                            f"⏹ <b>Cancel command sent.</b>\n"
+                            f"Distribution stops after the current player (~10 min).\n"
+                            f"Remaining players will be retried automatically.", chat_id
                         )
 
                 elif cmd == "/restart":
@@ -2051,6 +2051,7 @@ def telegram_command_loop():
                         )
                     else:
                         send_telegram("ℹ️ No active distribution.", chat_id)
+
 
                 elif cmd == "/chatid":
                     send_telegram(
