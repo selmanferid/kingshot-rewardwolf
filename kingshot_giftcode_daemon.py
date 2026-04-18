@@ -604,11 +604,16 @@ def sync_active_codes(api_codes_data):
                 """, (code_data.get("expiresAt"), now, code))
 
     # Mark codes not in API as inactive
+    # expires_at IS NULL olanlar için şu anki zamanı expiry olarak kaydet
     for code in db_codes:
         if code not in api_codes:
             c.execute("""
-                UPDATE active_codes SET is_currently_active=0, last_updated=? WHERE code=?
-            """, (now, code))
+                UPDATE active_codes
+                SET is_currently_active=0,
+                    expires_at = CASE WHEN expires_at IS NULL THEN ? ELSE expires_at END,
+                    last_updated=?
+                WHERE code=?
+            """, (now, now, code))
 
     conn.commit()
     conn.close()

@@ -1961,8 +1961,9 @@ function copyText(text) {
 }
 
 function isCodeExpired(c) {
-  if (!c.expires_at) return false;
-  return new Date(c.expires_at) < new Date();
+  if (!c.is_currently_active) return true;  // API listesinden düştü = expire
+  if (c.expires_at && new Date(c.expires_at) < new Date()) return true;
+  return false;
 }
 function codeBadge(c) {
   if (isCodeExpired(c))  return '<span class="bdg bdg-inactive">EXPIRED</span>';
