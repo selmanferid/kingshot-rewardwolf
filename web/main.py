@@ -534,6 +534,21 @@ def telegram_send(msg: TelegramMsg, _=Depends(verify_token)):
         return {"ok": False, "error": str(e)}
 
 # ── Distribution Status ───────────────────────────────────
+def _ctrl_get(key: str) -> str:
+    conn = db()
+    row = conn.execute("SELECT value FROM daemon_control WHERE key=?", (key,)).fetchone()
+    conn.close()
+    return row["value"] if row else ""
+
+def _ctrl_set(key: str, value: str):
+    conn = db()
+    conn.execute(
+        "INSERT OR REPLACE INTO daemon_control (key, value, updated_at) VALUES (?, ?, datetime('now'))",
+        (key, value)
+    )
+    conn.commit()
+    conn.close()
+
 @app.get("/api/distribution/status")
 def distribution_status(_=Depends(verify_token)):
     conn = db()
@@ -553,7 +568,24 @@ def distribution_status(_=Depends(verify_token)):
         ORDER BY ac.is_completed ASC, ac.created_at DESC
     """).fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    paused = _ctrl_get("dist_paused") == "1"
+    return {"codes": [dict(r) for r in rows], "paused": paused}
+
+@app.post("/api/distribution/pause")
+def distribution_pause(_=Depends(verify_token)):
+    _ctrl_set("dist_cmd", "pause")
+    return {"ok": True, "message": "Duraklat komutu gönderildi"}
+
+@app.post("/api/distribution/resume")
+def distribution_resume(_=Depends(verify_token)):
+    _ctrl_set("dist_cmd", "resume")
+    _ctrl_set("dist_paused", "0")
+    return {"ok": True, "message": "Devam et komutu gönderildi"}
+
+@app.post("/api/distribution/cancel")
+def distribution_cancel(_=Depends(verify_token)):
+    _ctrl_set("dist_cmd", "cancel")
+    return {"ok": True, "message": "İptal komutu gönderildi"}
 
 class AddCodeBody(BaseModel):
     code: str

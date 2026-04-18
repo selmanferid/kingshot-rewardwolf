@@ -506,9 +506,21 @@ input:not([class]),select:not([class]),textarea:not([class]){
         <div class="bg-sl1 rounded-xl p-5 mb-5">
           <div class="flex items-center justify-between mb-4">
             <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out">Distribution Status</p>
-            <button onclick="loadDistributionStatus()" class="text-out/40 hover:text-out transition-colors sp">
-              <span class="material-symbols-outlined text-sm">refresh</span>
-            </button>
+            <div class="flex items-center gap-2">
+              <!-- Kontrol butonları — aktif dağıtım varsa görünür -->
+              <div id="dist-controls" class="hidden flex items-center gap-2">
+                <button id="btn-pause-resume" onclick="distPauseResume()"
+                  class="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-head font-bold transition-all sp hover:brightness-110 active:scale-[.98]">
+                </button>
+                <button onclick="distCancel()"
+                  class="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-head font-bold bg-e/20 text-e hover:bg-e/30 transition-all sp active:scale-[.98]">
+                  <span class="material-symbols-outlined text-[13px]">stop</span>İptal
+                </button>
+              </div>
+              <button onclick="loadDistributionStatus()" class="text-out/40 hover:text-out transition-colors sp">
+                <span class="material-symbols-outlined text-sm">refresh</span>
+              </button>
+            </div>
           </div>
           <div id="dist-status-list">
             <div class="font-mono text-[11px] text-out/40 text-center py-4">Loading...</div>
@@ -1174,9 +1186,28 @@ function updateUptimeDisplay() {
 
 async function loadDistributionStatus() {
   try {
-    const codes = await apiFetch('/distribution/status');
+    const data  = await apiFetch('/distribution/status');
+    const codes = data.codes ?? data;   // eski format uyumu
+    const paused = data.paused ?? false;
     const el    = document.getElementById('dist-status-list');
     const sel   = document.getElementById('trigger-code-select');
+    const ctrl  = document.getElementById('dist-controls');
+    const btnPR = document.getElementById('btn-pause-resume');
+
+    // Aktif (tamamlanmamış) kod var mı?
+    const hasActive = codes.some(c => !c.is_completed);
+    _distPaused = paused;
+    if (ctrl) ctrl.classList.toggle('hidden', !hasActive);
+    if (btnPR && hasActive) {
+      if (paused) {
+        btnPR.innerHTML = '<span class="material-symbols-outlined text-[13px]" style="font-variation-settings:\'FILL\' 1;">play_arrow</span>Devam';
+        btnPR.className = btnPR.className.replace(/bg-\S+/g, '').trim() + ' bg-t/20 text-t hover:bg-t/30';
+      } else {
+        btnPR.innerHTML = '<span class="material-symbols-outlined text-[13px]" style="font-variation-settings:\'FILL\' 1;">pause</span>Duraklat';
+        btnPR.className = btnPR.className.replace(/bg-\S+/g, '').trim() + ' bg-pc/20 text-pc hover:bg-pc/30';
+      }
+    }
+
     if (!codes.length) {
       if (el)  el.innerHTML  = '<div class="font-mono text-[11px] text-out/40 text-center py-4">No active codes</div>';
       if (sel) sel.innerHTML = '<option value="">No active codes</option>';
@@ -1226,6 +1257,26 @@ async function triggerDistribution() {
     const d = await apiFetch('/codes/add', { method:'POST', body:JSON.stringify({code}) });
     toast(d.message || (d.ok ? 'Triggered' : 'Already active'));
     loadDistributionStatus();
+  } catch(e) { toast('Error: ' + e.message, true); }
+}
+
+let _distPaused = false;
+async function distPauseResume() {
+  const endpoint = _distPaused ? '/distribution/resume' : '/distribution/pause';
+  try {
+    const d = await apiFetch(endpoint, { method:'POST' });
+    toast(d.message || 'OK');
+    _distPaused = !_distPaused;
+    setTimeout(loadDistributionStatus, 500);
+  } catch(e) { toast('Error: ' + e.message, true); }
+}
+
+async function distCancel() {
+  if (!confirm('Dağıtım iptal edilsin mi? Kalan oyuncular sonraki retry döngüsünde alınır.')) return;
+  try {
+    const d = await apiFetch('/distribution/cancel', { method:'POST' });
+    toast(d.message || 'İptal komutu gönderildi');
+    setTimeout(loadDistributionStatus, 500);
   } catch(e) { toast('Error: ' + e.message, true); }
 }
 

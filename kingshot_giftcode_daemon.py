@@ -80,6 +80,8 @@ _last_player_check_ts  = None  # Yeni oyuncu tespiti için
 # Active distribution state (for web UI and /status command)
 _dist_state = {
     "active": False,
+    "paused": False,
+    "cancelled": False,
     "code": None,
     "current_player": None,
     "current_index": 0,
@@ -398,6 +400,18 @@ def init_db():
     """)
     c.execute("CREATE INDEX IF NOT EXISTS idx_name_history_player ON player_name_history(player_id)")
 
+    # Daemon control — web ↔ daemon iletişimi (pause/resume/cancel)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS daemon_control (
+            key        TEXT PRIMARY KEY,
+            value      TEXT,
+            updated_at TEXT
+        )
+    """)
+    # Varsayılan kontrol kayıtları
+    c.execute("INSERT OR IGNORE INTO daemon_control (key, value, updated_at) VALUES ('dist_cmd', '', '')")
+    c.execute("INSERT OR IGNORE INTO daemon_control (key, value, updated_at) VALUES ('dist_paused', '0', '')")
+
     conn.commit()
     conn.close()
     log.info("✅ Database initialized.")
@@ -408,6 +422,23 @@ def db_connect():
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
     return conn
+
+def ctrl_get(key: str) -> str:
+    """daemon_control tablosundan değer oku."""
+    conn = db_connect()
+    row = conn.execute("SELECT value FROM daemon_control WHERE key=?", (key,)).fetchone()
+    conn.close()
+    return row["value"] if row else ""
+
+def ctrl_set(key: str, value: str):
+    """daemon_control tablosuna değer yaz."""
+    conn = db_connect()
+    conn.execute(
+        "INSERT OR REPLACE INTO daemon_control (key, value, updated_at) VALUES (?, ?, ?)",
+        (key, value, datetime.now(timezone.utc).isoformat())
+    )
+    conn.commit()
+    conn.close()
 
 # ============================================================
 #  PLAYER SYNC
@@ -1430,6 +1461,44 @@ def redeem_code_for_all(gift_code):
             log.info(f"  ⏳ Next player in {delay}s (~{delay//60}min)...")
             time.sleep(delay)
 
+            # ── Kontrol: iptal veya duraklat ──────────────────
+            cmd = ctrl_get("dist_cmd")
+            if cmd == "cancel":
+                ctrl_set("dist_cmd", "")
+                ctrl_set("dist_paused", "0")
+                _dist_state["paused"] = False
+                log.info("⏹ Distribution cancelled via control panel.")
+                send_telegram(f"⏹ <b>Dağıtım iptal edildi.</b>\nKod: <code>{gift_code}</code>\n{processed} oyuncu işlendi.")
+                break
+            elif cmd == "pause":
+                ctrl_set("dist_cmd", "")
+                ctrl_set("dist_paused", "1")
+                _dist_state["paused"] = True
+                log.info("⏸ Distribution paused. Waiting for resume or cancel...")
+                send_telegram(f"⏸ <b>Dağıtım duraklatıldı.</b>\nKod: <code>{gift_code}</code>\n{processed}/{_dist_state['total']} işlendi.")
+                while True:
+                    time.sleep(10)
+                    resume_cmd = ctrl_get("dist_cmd")
+                    if resume_cmd == "resume":
+                        ctrl_set("dist_cmd", "")
+                        ctrl_set("dist_paused", "0")
+                        _dist_state["paused"] = False
+                        log.info("▶ Distribution resumed.")
+                        send_telegram(f"▶ <b>Dağıtım devam ediyor.</b>\nKod: <code>{gift_code}</code>")
+                        break
+                    elif resume_cmd == "cancel":
+                        ctrl_set("dist_cmd", "")
+                        ctrl_set("dist_paused", "0")
+                        _dist_state["paused"] = False
+                        log.info("⏹ Distribution cancelled while paused.")
+                        send_telegram(f"⏹ <b>Dağıtım iptal edildi (duraklatılmışken).</b>\nKod: <code>{gift_code}</code>")
+                        # Dış döngüyü kırmak için flag kullan
+                        _dist_state["cancelled"] = True
+                        break
+                if _dist_state.get("cancelled"):
+                    _dist_state["cancelled"] = False
+                    break
+
         except Exception as e:
             log.error(f"  💥 Browser crashed for {player_id}: {e}")
             try:
@@ -1494,6 +1563,9 @@ def redeem_code_for_all(gift_code):
     )
 
     _dist_state["active"] = False
+    _dist_state["paused"] = False
+    ctrl_set("dist_paused", "0")
+    ctrl_set("dist_cmd", "")
     return results
 
 # ============================================================
