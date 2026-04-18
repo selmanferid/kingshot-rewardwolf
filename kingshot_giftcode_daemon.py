@@ -2027,12 +2027,26 @@ def telegram_command_loop():
                             start = datetime.fromisoformat(_dist_state["started_at"])
                             mins = int((datetime.now(timezone.utc) - start).total_seconds() / 60)
                             elapsed = f"\n⏱️ Running: {mins} min"
+                        paused  = _dist_state.get("paused", False)
+                        pending = ctrl_get("dist_cmd")
+                        if paused:
+                            state_line = "⏸ <b>PAUSED</b>"
+                            hint = "\nSend /resume to continue or /cancel to stop."
+                        elif pending == "pause":
+                            state_line = "⏸ <b>Pause pending...</b> (waits for current player)"
+                            hint = ""
+                        elif pending == "cancel":
+                            state_line = "⏹ <b>Cancel pending...</b> (waits for current player)"
+                            hint = ""
+                        else:
+                            state_line = "🔄 <b>Active Distribution</b>"
+                            hint = ""
                         send_telegram(
-                            f"🔄 <b>Active Distribution</b>\n"
+                            f"{state_line}\n"
                             f"Code: <code>{_dist_state['code']}</code>\n"
                             f"Player: {_dist_state['current_player']} [{_dist_state['current_index']}/{_dist_state['total']}]\n"
                             f"✅ {_dist_state['success']} ⚠️ {_dist_state['already_used']} ❌ {_dist_state['failed']} ⏭️ {_dist_state['skipped']}"
-                            f"{elapsed}",
+                            f"{elapsed}{hint}",
                             chat_id
                         )
                     else:
