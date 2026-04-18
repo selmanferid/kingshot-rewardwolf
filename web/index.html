@@ -1187,11 +1187,14 @@ async function loadDistributionStatus() {
       const total     = c.player_count || 1;
       const pct       = Math.min(Math.round(delivered / total * 100), 100);
       const barCol    = c.is_completed ? 'bg-out/20' : pct > 80 ? 'bg-t' : 'bg-pc';
-      const badge     = c.is_completed
-        ? '<span class="bdg bdg-gray text-[9px]">Completed</span>'
-        : c.server_busy > 0
-          ? '<span class="bdg bdg-yellow text-[9px]">Busy</span>'
-          : '<span class="bdg bdg-green text-[9px]">Active</span>';
+      const expired   = c.expires_at && new Date(c.expires_at) < new Date();
+      const badge     = expired
+        ? '<span class="bdg bdg-gray text-[9px]">Expired</span>'
+        : c.is_completed
+          ? '<span class="bdg bdg-complete text-[9px]">Complete</span>'
+          : c.server_busy > 0
+            ? '<span class="bdg bdg-yellow text-[9px]">Busy</span>'
+            : '<span class="bdg bdg-green text-[9px]">Active</span>';
       return `<div class="mb-3 last:mb-0">
         <div class="flex items-center justify-between mb-1.5">
           <span class="font-mono text-sm text-p font-bold">${c.code}</span>
@@ -1211,7 +1214,8 @@ async function loadDistributionStatus() {
       </div>`;
     }).join('<div class="border-t border-white/5 my-3"></div>');
     if (sel) sel.innerHTML = '<option value="">Select active code...</option>' +
-      codes.filter(c => !c.is_completed).map(c => `<option value="${c.code}">${c.code}</option>`).join('');
+      codes.filter(c => !(c.expires_at && new Date(c.expires_at) < new Date()))
+           .map(c => `<option value="${c.code}">${c.code}${c.is_completed ? ' (complete)' : ''}</option>`).join('');
   } catch(e) {}
 }
 
@@ -1313,7 +1317,7 @@ async function loadDashboard() {
     document.getElementById('s-vip-sub').textContent = `${d.players.vip} VIP`;
     document.getElementById('s-total').textContent   = d.stats.total_redemptions;
     document.getElementById('s-success').textContent = d.stats.total_success_all;
-    const activeCodes = codes.filter(c => c.is_currently_active && !c.is_completed).length;
+    const activeCodes = codes.filter(c => !isCodeExpired(c)).length;
     document.getElementById('s-active-codes').textContent = activeCodes;
     setHealthBar('cpu',  d.health.cpu,  '%',  80);
     setHealthBar('ram',  d.health.ram,  '%',  85);
@@ -1956,9 +1960,13 @@ function copyText(text) {
   navigator.clipboard.writeText(text).then(() => toast('Kopyalandı')).catch(() => toast('Kopyalanamadı', true));
 }
 
+function isCodeExpired(c) {
+  if (!c.expires_at) return false;
+  return new Date(c.expires_at) < new Date();
+}
 function codeBadge(c) {
-  if (!c.is_currently_active) return '<span class="bdg bdg-inactive">INACTIVE</span>';
-  if (c.is_completed)         return '<span class="bdg bdg-complete">COMPLETE</span>';
+  if (isCodeExpired(c))  return '<span class="bdg bdg-inactive">EXPIRED</span>';
+  if (c.is_completed)    return '<span class="bdg bdg-complete">ACTIVE · COMPLETE</span>';
   return '<span class="bdg bdg-active">ACTIVE</span>';
 }
 function sBadge(s) {
