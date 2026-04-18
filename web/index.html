@@ -1192,11 +1192,9 @@ async function loadDistributionStatus() {
         ? '<span class="bdg bdg-gray text-[9px]">Expired</span>'
         : c.is_completed
           ? '<span class="bdg bdg-complete text-[9px]">Complete</span>'
-          : !c.is_currently_active
-            ? '<span class="bdg bdg-inactive text-[9px]">API\'den düştü</span>'
-            : c.server_busy > 0
-              ? '<span class="bdg bdg-yellow text-[9px]">Busy</span>'
-              : '<span class="bdg bdg-green text-[9px]">Active</span>';
+          : c.server_busy > 0
+            ? '<span class="bdg bdg-yellow text-[9px]">Busy</span>'
+            : '<span class="bdg bdg-green text-[9px]">Active</span>';
       return `<div class="mb-3 last:mb-0">
         <div class="flex items-center justify-between mb-1.5">
           <span class="font-mono text-sm text-p font-bold">${c.code}</span>
