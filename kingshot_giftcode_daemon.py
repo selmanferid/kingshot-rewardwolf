@@ -588,20 +588,25 @@ def sync_active_codes(api_codes_data):
             log.info(f"🆕 New code added to DB: {code}")
         else:
             existing = db_codes[code]
+            new_expiry = code_data.get("expiresAt")
             if existing["is_currently_active"] == 0:
                 # Reactivated — reset completed so missing players get it
                 log.info(f"♻️ Code reactivated: {code} — resetting completed status")
                 c.execute("""
                     UPDATE active_codes
                     SET is_currently_active=1, is_completed=0,
-                        expires_at=?, last_updated=?
+                        expires_at = CASE WHEN ? IS NOT NULL THEN ? ELSE expires_at END,
+                        last_updated=?
                     WHERE code=?
-                """, (code_data.get("expiresAt"), now, code))
+                """, (new_expiry, new_expiry, now, code))
             else:
-                # Update expiry in case it changed
-                c.execute("""
-                    UPDATE active_codes SET expires_at=?, last_updated=? WHERE code=?
-                """, (code_data.get("expiresAt"), now, code))
+                # Update expiry only if API provides a non-null value (never overwrite with null)
+                if new_expiry:
+                    c.execute("""
+                        UPDATE active_codes SET expires_at=?, last_updated=? WHERE code=?
+                    """, (new_expiry, now, code))
+                else:
+                    c.execute("UPDATE active_codes SET last_updated=? WHERE code=?", (now, code))
 
     # Mark codes not in API as inactive
     # expires_at IS NULL olanlar için şu anki zamanı expiry olarak kaydet
@@ -834,6 +839,74 @@ def check_expiry_warnings(codes_data, all_players):
 # ============================================================
 #  KINGSHOT API
 # ============================================================
+def refresh_null_expiries():
+    """
+    expires_at IS NULL olan aktif kodlar için API'yi tek tek sorgular.
+    Eğer artık bir expiry tarihi döndürülüyorsa DB'yi günceller.
+    """
+    conn = db_connect()
+    null_codes = conn.execute(
+        "SELECT code FROM active_codes WHERE is_currently_active=1 AND expires_at IS NULL"
+    ).fetchall()
+    conn.close()
+
+    if not null_codes:
+        return
+
+    updated = 0
+    for row in null_codes:
+        code = row["code"]
+        expiry = None
+
+        # Yöntem 1: bireysel kod endpoint'i
+        try:
+            resp = requests.get(
+                f"{CONFIG['KINGSHOT_API']}/gift-codes/{code}",
+                timeout=8,
+                headers={"Accept": "application/json"}
+            )
+            if resp.status_code == 200:
+                d = resp.json()
+                expiry = (d.get("data") or d).get("expiresAt")
+        except Exception:
+            pass
+
+        # Yöntem 2: liste endpoint'ine parametre ile sor
+        if not expiry:
+            try:
+                resp = requests.get(
+                    f"{CONFIG['KINGSHOT_API']}/gift-codes",
+                    params={"code": code},
+                    timeout=8,
+                    headers={"Accept": "application/json"}
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    items = (data.get("data") or {}).get("giftCodes") or []
+                    for item in items:
+                        if item.get("code") == code:
+                            expiry = item.get("expiresAt")
+                            break
+            except Exception:
+                pass
+
+        if expiry:
+            conn = db_connect()
+            conn.execute(
+                "UPDATE active_codes SET expires_at=?, last_updated=? WHERE code=?",
+                (expiry, datetime.now(timezone.utc).isoformat(), code)
+            )
+            conn.commit()
+            conn.close()
+            log.info(f"📅 Expiry updated for {code}: {expiry}")
+            updated += 1
+
+    if updated:
+        log.info(f"✅ Expiry refresh: {updated}/{len(null_codes)} code(s) updated")
+    else:
+        log.debug(f"🔍 Expiry refresh: no updates for {len(null_codes)} null-expiry code(s)")
+
+
 def fetch_active_gift_codes(run_expiry_check=False, all_players=None):
     try:
         resp = requests.get(
@@ -1922,6 +1995,9 @@ def main():
                     run_expiry_check=not _is_first_run,
                     all_players=players
                 )
+
+                # expires_at IS NULL olan aktif kodların expiry'sini ayrıca kontrol et
+                refresh_null_expiries()
 
                 # Dağıtım bekleyen (tamamlanmamış) kodlar
                 incomplete = [c for c in active_codes if not is_code_completed(c)]
