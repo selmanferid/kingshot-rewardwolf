@@ -42,6 +42,13 @@
 - `send_to_channels(event, **kwargs)` routes Discord → embed, Telegram → string template
 - Main new-code send_telegram() uses `<pre>CODE</pre>` block for one-tap copy
 
+## Distribution Control IPC
+- Web and daemon are separate containers — no shared memory. Communication via `daemon_control` SQLite table.
+- Keys: `dist_cmd` (pause/resume/cancel/empty), `dist_paused` (0/1)
+- Commands are checked **after** each player's sleep (~10min). Intentional: avoids interrupting mid-redemption.
+- Pause suspends in a 10s polling loop; cancel breaks the while loop (remaining players stay FAILED for retry).
+- `/retry` during active distribution: saves players as `RETRY_PENDING` (not FAILED), picked up by the running while loop immediately via `OR r.status = 'RETRY_PENDING'` in the query.
+
 ## New Code Spam Prevention
 - `notified` column on `active_codes` (INTEGER DEFAULT 0)
 - Migration sets notified=1 for all pre-existing codes on first run

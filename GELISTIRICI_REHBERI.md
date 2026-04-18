@@ -30,6 +30,12 @@ Proje hem Raspberry Pi (ARM64) üzerinde hem de Windows/Mac sistemlerde çalış
 - `/api/players` — Oyuncu işlemleri (CRUD); tüm oyuncu yönetimi buradan yapılır.
 - `/api/logs` — Kuyruk (tail) tabanlı asenkron log takibi.
 - `/api/settings` — Web üzerinden yapılandırmayı güncelleme.
+- `/api/distribution/status` — Aktif kodlar, dağıtım ilerleme yüzdesi ve `paused` durumu. `{codes: [...], paused: bool}` döner.
+- `POST /api/distribution/pause` — `daemon_control.dist_cmd = 'pause'` yazar.
+- `POST /api/distribution/resume` — `dist_cmd = 'resume'`, `dist_paused = '0'` yazar.
+- `POST /api/distribution/cancel` — `dist_cmd = 'cancel'` yazar.
+- `POST /api/codes/add` — Manuel kod ekleme veya tamamlanmış kodu sıfırlama.
+- `GET /api/daemon/uptime` — Docker container StartedAt bilgisi.
 
 Yeni bir endpoint eklerken:
 ```python

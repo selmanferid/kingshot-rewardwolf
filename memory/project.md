@@ -28,7 +28,10 @@
 
 ## Key Tables (SQLite)
 - `players` — player list with VIP, role, soft-delete
-- `redemptions` — per-player-per-code results (SUCCESS, ALREADY_USED, FAILED, etc.)
+- `redemptions` — per-player-per-code results (SUCCESS, ALREADY_USED, FAILED, RETRY_PENDING, etc.)
 - `active_codes` — tracked gift codes with stats
 - `api_keys` — external API access keys with name/description/last_used
 - `expiry_warnings` — tracks which expiry warnings have been sent
+- `notification_channels` — Telegram/Discord channels with per-event toggles and custom templates
+- `player_name_history` — username change history per player
+- `daemon_control` — web↔daemon IPC; keys: `dist_cmd` (pause/resume/cancel), `dist_paused` (0/1)

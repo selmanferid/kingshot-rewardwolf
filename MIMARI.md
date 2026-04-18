@@ -42,6 +42,8 @@ Yoğun okuma/yazma işlemi için SQLite WAL (Write-Ahead Logging) modunda çalı
 - `expiry_warnings`: Bitmek üzere olan kodlar için atılmış uyarı mesajlarının kaydı.
 - `notification_channels`: Telegram grupları ve Discord webhook'larının tanımları, event toggle'ları ve özel şablonları.
 - `api_keys`: Dışa açık API endpoint'leri için erişim anahtarları.
+- `player_name_history`: Oyuncu kullanıcı adı değişikliklerinin geçmişi.
+- `daemon_control`: Web arayüzü ↔ daemon arası IPC tablosu. `dist_cmd` (pause/resume/cancel) ve `dist_paused` (0/1) key'leri ile dağıtım kontrolü sağlar.
 
 ## 3. Redemption Durum Modeli
 
@@ -54,8 +56,21 @@ Her oyuncu-kod çifti için aşağıdaki durumlardan biri kaydedilir:
 | `FAILED` | Geçici hata — yeniden denenecek | ❌ Hayır |
 | `INVALID_CODE` | Kod geçersiz veya süresi dolmuş | ❌ Hayır |
 | `SERVER_BUSY` | Sunucu yanıt vermedi | ❌ Hayır |
+| `RETRY_PENDING` | `/retry` komutuyla aktif dağıtıma enjekte edildi | ❌ Hayır (işlenene kadar) |
 
 `ALREADY_USED`, oyuncunun ödülü başka kanaldan aldığını teyit eder — bu durum "teslim edildi" olarak sayılır.
+
+## 6. Dağıtım Kontrol Mekanizması
+
+Dağıtım (distribution) aktifken Telegram komutları veya web arayüzü üzerinden kontrol edilebilir:
+
+- **Pause:** `daemon_control.dist_cmd = 'pause'` yazılır. Daemon her oyuncu arasındaki sleep bitince bu değeri okur ve 10 saniyede bir polling yapan bir bekleme döngüsüne girer.
+- **Resume:** `dist_cmd = 'resume'` ve `dist_paused = '0'` yazılır. Daemon polling döngüsünden çıkar ve dağıtıma devam eder.
+- **Cancel:** `dist_cmd = 'cancel'` yazılır. Daemon sleep bitince döngüden çıkar; kalan oyuncular `FAILED` statüsünde kalır ve sonraki retry döngüsünde otomatik alınır.
+
+Komutların etkisi **anlık değildir** — mevcut oyuncu için olan sleep (~10dk) bittikten sonra işlenir. Bu tasarım bilerek böyledir; kritik bir işlemin ortasında kesilmemesi için tercih edilmiştir.
+
+`/retry` komutu aktif dağıtım sırasında kullanılırsa, retry oyuncuları `RETRY_PENDING` statüsüyle DB'ye yazılır ve mevcut while döngüsü tarafından sırayla işlenir (ayrı bir tur beklenmez).
 
 ## 4. Akış Diyagramı
 

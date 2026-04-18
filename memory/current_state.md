@@ -1,38 +1,36 @@
 # Current State
 
-**Last updated:** 2026-04-18
+**Last updated:** 2026-04-19
 
 ## System Status
 - Production running on Raspberry Pi 4 via Docker Compose
 - Two containers: `kingshot-daemon` and `kingshot-web`
 
-## Recent Changes (this session)
+## Recent Changes
 - v2.0.2 → v2.1.0 bump
 - Selenium removed, Playwright is the browser automation layer
 - Google Sheets player sync disabled — players managed via Dashboard only
 - Delivered count fixed: ALREADY_USED now counts as delivered (SUCCESS + ALREADY_USED = delivered)
-- Startup Telegram message simplified (inactive codes list removed)
-- Performance optimisations applied (see decisions.md)
-- RAM optimisations: shm_size 256mb→64mb, new browser args, font blocking added
-- API management improved: new endpoints, UI redesign, description field on keys
-- Rewardwolf logo added as favicon + dashboard/login logo (logo-1024.png login, logo-128.png sidebar)
-- UI rebranded: WLF GİFT PANEL (sidebar title), Daemon → Rewardwolf (labels)
-- TWA (Telegram Web App) removed completely
-- New-code spam fix: `notified` column on active_codes — Telegram alert sent only once per code
 - Notification Channels system: multi-platform (Telegram + Discord), per-event toggles, custom templates
-- `/chatid` bot command added; every incoming message logs chat_id to daemon log
-- Gift codes now copyable in Telegram (`<pre>` block) notifications
-- Discord notifications use structured embeds (gold/green/red/blue per event), @everyone on new_code + expiry_warning
+- Gift codes copyable in Telegram (`<pre>` block); Discord uses structured embeds + @everyone
 - player_name_history table added; player modal shows name change history
 - Code active status based solely on expires_at (future → active, past/null+inactive → expired)
 - New player auto-distribution: newly added players trigger reset of completed active codes
 - "Claim limit reached" → FAILED in parse_message()
-- Automatic null-expiry refresh: refresh_null_expiries() runs every cycle
-- VIP777 EXPIRED bug fixed: future expires_at always takes priority in isCodeExpired()
-- Rewardwolf Control page overhauled: 5-row layout, distribution status, manual add, uptime, channel message sender, system check, test-all-channels
-- get_failed_players() retry logic: excludes SUCCESS, ALREADY_USED, INVALID_CODE, SERVER_BUSY; ignore_delay=True for /retry command
-- First-run new player detection bug fixed: _last_player_check_ts=None → just set timestamp, no reset
-- Log spam fixed: only log codes actually added to queue (newly_queued); already-queued codes log ⏳
+- Automatic null-expiry refresh: refresh_null_expiries() runs every 5-min cycle
+- Rewardwolf Control page overhauled: distribution status, trigger, manual add, uptime, message sender, system check, test-all-channels
+- get_failed_players() retry logic: excludes SUCCESS, ALREADY_USED, INVALID_CODE, SERVER_BUSY
+- /retry mid-distribution: saves as RETRY_PENDING, injected into running while loop; _dist_state["total"] bumped
+- First-run new player detection bug fixed: _last_player_check_ts=None skips first cycle
+- Log spam fixed: only log codes actually added to queue
+- Distribution status + trigger dropdown: only shows is_currently_active=1 codes
+- Distribution pause/resume/cancel via daemon_control table (web↔daemon IPC)
+  - Checked after each player sleep (~10min delay by design)
+  - Pause: daemon enters 10s polling loop until resume/cancel
+  - Cancel: loop breaks, remaining players stay FAILED for auto-retry
+- Telegram commands: /pause, /resume, /cancel — context-aware replies
+- /dist command: shows PAUSED / Pause pending / Cancel pending states with hints
+- /help reorganized: Info / Distribution / System sections, all English
 
 ## Public API Endpoints (X-API-Key header required)
 - `GET /api/public/dashboard` — overall stats (delivered = success + already_used)
