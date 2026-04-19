@@ -40,7 +40,7 @@ Yoğun okuma/yazma işlemi için SQLite WAL (Write-Ahead Logging) modunda çalı
 - `redemptions`: Hangi koda, hangi oyuncuya ne zaman gönderim yapıldığının ve sonucun (SUCCESS, ALREADY_USED, FAILED vb.) kaydı.
 - `active_codes`: Sisteme düşmüş kodlar, bitiş süreleri, gönderim istatistikleri ve `notified` bayrağı.
 - `expiry_warnings`: Bitmek üzere olan kodlar için atılmış uyarı mesajlarının kaydı.
-- `notification_channels`: Telegram grupları ve Discord webhook'larının tanımları, event toggle'ları ve özel şablonları.
+- `notification_channels`: Telegram grupları ve Discord webhook'larının tanımları, event toggle'ları, özel şablonları ve Discord mention ayarları (`mention_*` kolonları: `none` / `everyone` / `here`).
 - `api_keys`: Dışa açık API endpoint'leri için erişim anahtarları.
 - `player_name_history`: Oyuncu kullanıcı adı değişikliklerinin geçmişi.
 - `daemon_control`: Web arayüzü ↔ daemon arası IPC tablosu. `dist_cmd` (pause/resume/cancel) ve `dist_paused` (0/1) key'leri ile dağıtım kontrolü sağlar.
@@ -78,7 +78,13 @@ Komutların etkisi **anlık değildir** — mevcut oyuncu için olan sleep (~10d
 1. **Kod Kontrolü:** `Daemon` → `KingShot API` → Yeni kod bulunursa `active_codes` tablosuna eklenir. `notified=0` ise Telegram + notification channels'a bildirim gönderilir ve `notified=1` set edilir (spam önleme).
 2. **Redeem Süreci:** `Daemon` → `Playwright (host Chromium)` → `https://ks-giftcode.centurygame.com/` → Yanıt parse edilir → Veritabanına kaydedilir.
 3. **Retry:** `FAILED` statüsündeki kayıtlar, `RETRY_DELAY_HOURS` (varsayılan 2 saat) sonra tekrar denenir.
-4. **Bildirim:** Dağıtım tamamlanınca, kod sona ermeden 72 saat önce ve her gece `send_to_channels()` ile tüm aktif kanallara ilgili event mesajı gönderilir.
+4. **Bildirim:** Tüm bildirimler `send_to_channels(event, **kwargs)` üzerinden konfigüre edilmiş kanallara gider. Desteklenen event'ler:
+   - `new_code` — Yeni kod bulundu
+   - `dist_complete` — Dağıtım tamamlandı (özet istatistik)
+   - `dist_state` — Operasyonel durum değişiklikleri: pause / resume / cancel / retry / expire / browser crash (varsayılan **açık**)
+   - `dist_progress` — Her oyuncu için anlık sonuç (varsayılan **kapalı**, spam riski yüksek)
+   - `expiry_warning` — 72 saat öncesi uyarı
+   - `daily_summary` — Gece 00:00 günlük özet
 5. **İzleme:** `Web Dashboard` veya `Telegram Bot` → O anki ilerleme ve istatistikler veritabanından okunur.
 
 ## 5. Özel Optimizasyonlar
@@ -87,4 +93,4 @@ Komutların etkisi **anlık değildir** — mevcut oyuncu için olan sleep (~10d
 - **Host Chromium Mapping:** Playwright'ın kendi tarayıcısını indirmek yerine host (Raspberry Pi) üzerindeki Chromium binary'si Docker volume ile read-only olarak map edilir. Bu sayede Docker imaj boyutu küçük tutulur ve ARM64 uyumluluğu sağlanır.
 - **Tek Browser Instance:** Browser dağıtım süreci boyunca tek kez açılır; her oyuncu için yalnızca hafif bir `BrowserContext` oluşturulur (RAM optimizasyonu).
 - **Resource Blocking:** Gereksiz network kaynakları (image, media, font) Playwright route kurallarıyla engellenir. Stylesheet engellenmez — Vue SPA input alanlarını CSS ile yönetir.
-- **Notification Channels:** `send_to_channels(event, **kwargs)` fonksiyonu tüm aktif kanalları tek sorguda çeker, Telegram veya Discord'a platform'a göre gönderim yapar. Her kanalın şablonu özelleştirilebilir; boşsa varsayılan şablon kullanılır.
+- **Notification Channels:** `send_to_channels(event, **kwargs)` fonksiyonu tüm aktif kanalları tek sorguda çeker, Telegram veya Discord'a platform'a göre gönderim yapar. Her kanalın şablonu özelleştirilebilir; boşsa varsayılan şablon kullanılır. Discord kanalları için her event'e ayrı mention tipi (`none` / `@everyone` / `@here`) atanabilir.

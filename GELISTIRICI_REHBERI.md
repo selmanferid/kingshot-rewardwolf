@@ -66,7 +66,25 @@ Eğer gift code portalının arayüzü değişirse:
 
 Web container'dan host Docker'a doğrudan erişim olmadığı için "Sunucuyu Yeniden Başlat" gibi istekler `rebuild_server.py` üzerinden geçer. Bu araç localhost'ta çalışır ve host bash yetkisine sahiptir. Yeni komut eklerken RCE (Remote Code Execution) riskine karşı dikkatli olunmalıdır.
 
-## 5. Branch Stratejisi
+## 5. Notification Channels
+
+`send_to_channels(event, **kwargs)` ile tüm kanallar yönetilir. Yeni event eklemek için:
+
+1. `DEFAULT_CHANNEL_TEMPLATES` sözlüğüne varsayılan şablonu ekle
+2. `_build_discord_embed()` fonksiyonuna yeni `if event == "..."` bloğu ekle
+3. `notification_channels` tablosuna `ev_<event>`, `tpl_<event>`, `mention_<event>` kolonlarını ekle (daemon ve web/main.py her ikisinde de)
+4. Migration koduna ALTER TABLE satırlarını ekle
+5. `ChannelCreate` / `ChannelUpdate` Pydantic modellerini güncelle
+6. UI modal'ına event checkbox ve mention dropdown ekle
+
+**Discord mention:** Her kanal için her event'e bağımsız mention tipi (`none` / `everyone` / `here`) atanabilir. `send_to_channels` bu değeri DB'den okur — hardcoded set yoktur.
+
+**Önemli:** Daemon kodu `COPY` ile image'a kopyalanır. `kingshot_giftcode_daemon.py` değiştiğinde sadece restart **yetmez**:
+```bash
+docker compose build daemon && docker compose up -d --force-recreate
+```
+
+## 6. Branch Stratejisi
 
 - UI güncellemeleri için: `feat/ui`
 - Bug düzeltmeleri için: `fix/x-bug`

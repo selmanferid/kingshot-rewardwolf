@@ -936,6 +936,16 @@ class ChannelCreate(BaseModel):
     tpl_dist_complete:   Optional[str] = None
     tpl_expiry_warning:  Optional[str] = None
     tpl_daily_summary:   Optional[str] = None
+    tpl_dist_state:      Optional[str] = None
+    mention_new_code:        str = "everyone"  # "none" | "everyone" | "here"
+    mention_dist_complete:   str = "none"
+    mention_expiry_warning:  str = "everyone"
+    mention_daily_summary:   str = "none"
+    mention_dist_state:      str = "none"
+    ev_dist_state:           bool = True
+    ev_dist_progress:        bool = False
+    tpl_dist_progress:       Optional[str] = None
+    mention_dist_progress:   str = "none"
 
 class ChannelUpdate(BaseModel):
     name:                Optional[str]  = None
@@ -946,10 +956,20 @@ class ChannelUpdate(BaseModel):
     ev_dist_complete:    Optional[bool] = None
     ev_expiry_warning:   Optional[bool] = None
     ev_daily_summary:    Optional[bool] = None
+    ev_dist_state:       Optional[bool] = None
     tpl_new_code:        Optional[str]  = None
     tpl_dist_complete:   Optional[str]  = None
     tpl_expiry_warning:  Optional[str]  = None
     tpl_daily_summary:   Optional[str]  = None
+    tpl_dist_state:      Optional[str]  = None
+    mention_new_code:        Optional[str] = None
+    mention_dist_complete:   Optional[str] = None
+    mention_expiry_warning:  Optional[str] = None
+    mention_daily_summary:   Optional[str] = None
+    mention_dist_state:      Optional[str] = None
+    ev_dist_progress:        Optional[bool] = None
+    tpl_dist_progress:       Optional[str]  = None
+    mention_dist_progress:   Optional[str]  = None
 
 def init_channels_table():
     conn = sqlite3.connect(DB_PATH)
@@ -968,9 +988,35 @@ def init_channels_table():
             tpl_dist_complete   TEXT,
             tpl_expiry_warning  TEXT,
             tpl_daily_summary   TEXT,
+            mention_new_code        TEXT DEFAULT 'everyone',
+            mention_dist_complete   TEXT DEFAULT 'none',
+            mention_expiry_warning  TEXT DEFAULT 'everyone',
+            mention_daily_summary   TEXT DEFAULT 'none',
+            mention_dist_state      TEXT DEFAULT 'none',
+            ev_dist_state           INTEGER DEFAULT 1,
+            tpl_dist_state          TEXT,
             created_at          TEXT NOT NULL
         )
     """)
+    for col, default in [
+        ("mention_new_code",       "everyone"),
+        ("mention_dist_complete",  "none"),
+        ("mention_expiry_warning", "everyone"),
+        ("mention_daily_summary",  "none"),
+        ("mention_dist_state",     "none"),
+        ("ev_dist_state",          "1"),
+        ("tpl_dist_state",         ""),
+        ("ev_dist_progress",       "0"),
+        ("tpl_dist_progress",      ""),
+        ("mention_dist_progress",  "none"),
+    ]:
+        try:
+            if col.startswith("ev_"):
+                conn.execute(f"ALTER TABLE notification_channels ADD COLUMN {col} INTEGER DEFAULT {default}")
+            else:
+                conn.execute(f"ALTER TABLE notification_channels ADD COLUMN {col} TEXT DEFAULT '{default}'")
+        except sqlite3.OperationalError:
+            pass
     conn.commit()
     conn.close()
 
@@ -995,15 +1041,18 @@ def create_channel(body: ChannelCreate, _=Depends(verify_token)):
     cur = conn.execute("""
         INSERT INTO notification_channels
             (name, platform, target, enabled,
-             ev_new_code, ev_dist_complete, ev_expiry_warning, ev_daily_summary,
-             tpl_new_code, tpl_dist_complete, tpl_expiry_warning, tpl_daily_summary,
+             ev_new_code, ev_dist_complete, ev_expiry_warning, ev_daily_summary, ev_dist_state, ev_dist_progress,
+             tpl_new_code, tpl_dist_complete, tpl_expiry_warning, tpl_daily_summary, tpl_dist_state, tpl_dist_progress,
+             mention_new_code, mention_dist_complete, mention_expiry_warning, mention_daily_summary, mention_dist_state, mention_dist_progress,
              created_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, (body.name, body.platform, body.target, int(body.enabled),
           int(body.ev_new_code), int(body.ev_dist_complete),
-          int(body.ev_expiry_warning), int(body.ev_daily_summary),
+          int(body.ev_expiry_warning), int(body.ev_daily_summary), int(body.ev_dist_state), int(body.ev_dist_progress),
           body.tpl_new_code, body.tpl_dist_complete,
-          body.tpl_expiry_warning, body.tpl_daily_summary,
+          body.tpl_expiry_warning, body.tpl_daily_summary, body.tpl_dist_state, body.tpl_dist_progress,
+          body.mention_new_code, body.mention_dist_complete,
+          body.mention_expiry_warning, body.mention_daily_summary, body.mention_dist_state, body.mention_dist_progress,
           datetime.now(timezone.utc).isoformat()))
     conn.commit()
     row = conn.execute("SELECT * FROM notification_channels WHERE id=?", (cur.lastrowid,)).fetchone()
@@ -1017,7 +1066,7 @@ def update_channel(channel_id: int, body: ChannelUpdate, _=Depends(verify_token)
     if not updates:
         raise HTTPException(status_code=400, detail="No fields to update")
     # bool → int dönüşümü
-    for bfield in ("enabled","ev_new_code","ev_dist_complete","ev_expiry_warning","ev_daily_summary"):
+    for bfield in ("enabled","ev_new_code","ev_dist_complete","ev_expiry_warning","ev_daily_summary","ev_dist_state","ev_dist_progress"):
         if bfield in updates:
             updates[bfield] = int(updates[bfield])
     set_clause = ", ".join(f"{k}=?" for k in updates)

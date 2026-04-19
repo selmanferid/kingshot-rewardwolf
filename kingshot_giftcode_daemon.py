@@ -136,10 +136,10 @@ DEFAULT_CHANNEL_TEMPLATES = {
     "dist_complete":  "✅ Distribution Complete!\n🎁 Code: {code_fmt}\n\n✅ Delivered: {delivered}\n❌ Failed: {failed}\n👥 Total: {total}",
     "expiry_warning": "⏰ Gift Code Expiring!\n🎁 Code: {code_fmt}\n⏱ {hours}h remaining\n📊 {delivered}/{total} delivered",
     "daily_summary":  "📅 Daily Summary\n👥 Players: {players}\n✅ Delivered: {delivered}\n❌ Failed: {failed}",
+    "dist_state":     "{icon} <b>{title}</b>\n🎁 Code: {code_fmt}\n{detail}",
+    "dist_progress":  "{icon} <b>[{index}/{total}] {username}</b>\nCode: {code_fmt}\nStatus: {status}\nMessage: {msg}\n✅ {delivered} | ❌ {failed}",
 }
 
-# Discord events that should ping @everyone
-DISCORD_EVERYONE_EVENTS = {"new_code", "expiry_warning"}
 
 def _build_discord_embed(event: str, **kwargs) -> dict:
     """Event türüne göre Discord embed payload'u oluşturur."""
@@ -204,6 +204,47 @@ def _build_discord_embed(event: str, **kwargs) -> dict:
             }]
         }
 
+    if event == "dist_progress":
+        icon   = kwargs.get("icon", "❓")
+        status = kwargs.get("status", "")
+        color_map = {"SUCCESS": 5763719, "ALREADY_USED": 16776960, "SERVER_BUSY": 16776960}
+        return {
+            "embeds": [{
+                "title": f"{icon} [{kwargs.get('index','?')}/{kwargs.get('total','?')}] {kwargs.get('username','?')}",
+                "color": color_map.get(status, 15548997),
+                "fields": [
+                    {"name": "Code",    "value": code_fmt or "—",                "inline": False},
+                    {"name": "Status",  "value": status,                          "inline": True},
+                    {"name": "✅/❌",   "value": f"{kwargs.get('delivered',0)} / {kwargs.get('failed',0)}", "inline": True},
+                    {"name": "Message", "value": kwargs.get("msg", "—"),          "inline": False},
+                ],
+                "footer": {"text": "WLF Bot • Powered by Rewardwolf"},
+            }]
+        }
+
+    if event == "dist_state":
+        icon  = kwargs.get("icon", "ℹ️")
+        title = kwargs.get("title", "Distribution Update")
+        color_map = {
+            "⏸": 16776960,  # yellow — paused
+            "▶": 5763719,   # green  — resumed
+            "⏹": 15548997,  # red    — cancelled
+            "↩️": 3447003,   # blue   — retry
+            "⏰": 15548997,  # red    — expired
+            "❌": 15548997,  # red    — error
+        }
+        return {
+            "embeds": [{
+                "title": f"{icon} {title}",
+                "color": color_map.get(icon, 9807270),
+                "fields": [
+                    {"name": "Code",   "value": code_fmt or "—",              "inline": False},
+                    {"name": "Detail", "value": kwargs.get("detail", "—"),    "inline": False},
+                ],
+                "footer": {"text": "WLF Bot • Powered by Rewardwolf"},
+            }]
+        }
+
     # Bilinmeyen event — fallback plain text
     return {"content": f"[{event}] " + " ".join(f"{k}={v}" for k, v in kwargs.items())}
 
@@ -216,12 +257,13 @@ def _send_discord(webhook_url: str, payload: dict):
 
 def send_to_channels(event: str, **kwargs):
     """Tüm aktif notification channel'larına event mesajı gönder."""
-    ev_col  = f"ev_{event}"
-    tpl_col = f"tpl_{event}"
+    ev_col      = f"ev_{event}"
+    tpl_col     = f"tpl_{event}"
+    mention_col = f"mention_{event}"
     try:
         conn = db_connect()
         rows = conn.execute(f"""
-            SELECT platform, target, {tpl_col} as template
+            SELECT platform, target, {tpl_col} as template, {mention_col} as mention
             FROM notification_channels
             WHERE enabled=1 AND {ev_col}=1
         """).fetchall()
@@ -236,8 +278,9 @@ def send_to_channels(event: str, **kwargs):
 
         if platform == "discord":
             payload = _build_discord_embed(event, **kwargs)
-            if event in DISCORD_EVERYONE_EVENTS:
-                payload["content"] = "@everyone"
+            mention = row["mention"] or "none"
+            if mention in ("everyone", "here"):
+                payload["content"] = f"@{mention}"
             _send_discord(row["target"], payload)
 
         elif platform == "telegram":
@@ -378,9 +421,38 @@ def init_db():
             tpl_dist_complete   TEXT,
             tpl_expiry_warning  TEXT,
             tpl_daily_summary   TEXT,
+            mention_new_code        TEXT DEFAULT 'everyone',
+            mention_dist_complete   TEXT DEFAULT 'none',
+            mention_expiry_warning  TEXT DEFAULT 'everyone',
+            mention_daily_summary   TEXT DEFAULT 'none',
+            mention_dist_state      TEXT DEFAULT 'none',
+            ev_dist_state           INTEGER DEFAULT 1,
+            tpl_dist_state          TEXT,
             created_at          TEXT NOT NULL
         )
     """)
+    # Migration: mevcut tablolara yeni kolonları ekle
+    for col, default in [
+        ("mention_new_code",       "everyone"),
+        ("mention_dist_complete",  "none"),
+        ("mention_expiry_warning", "everyone"),
+        ("mention_daily_summary",  "none"),
+        ("mention_dist_state",     "none"),
+        ("ev_dist_state",          "1"),
+        ("tpl_dist_state",         ""),
+        ("ev_dist_progress",       "0"),
+        ("tpl_dist_progress",      ""),
+        ("mention_dist_progress",  "none"),
+    ]:
+        try:
+            if col.startswith("ev_"):
+                c.execute(f"ALTER TABLE notification_channels ADD COLUMN {col} INTEGER DEFAULT {default}")
+            else:
+                c.execute(f"ALTER TABLE notification_channels ADD COLUMN {col} TEXT DEFAULT '{default}'")
+            conn.commit()
+            log.info(f"✅ '{col}' column added to notification_channels.")
+        except sqlite3.OperationalError:
+            pass  # Kolon zaten var
 
     c.execute("""
         CREATE TABLE IF NOT EXISTS expiry_warnings (
@@ -1414,11 +1486,8 @@ def redeem_code_for_all(gift_code):
 
         if code_expires_at and datetime.now(timezone.utc) >= code_expires_at:
             log.warning(f"⏰ Code {gift_code} has expired (UTC). Stopping distribution.")
-            send_telegram(
-                f"⏰ <b>Code Expired!</b>\n"
-                f"Code: <code>{gift_code}</code>\n"
-                f"Stopped after {processed} players."
-            )
+            send_to_channels("dist_state", code=gift_code, icon="⏰", title="Code Expired!",
+                             detail=f"Stopped after {processed} players.")
             break
 
         log.info(f"🔄 [{processed + 1}] {player_id} ({username}){vip_tag}{role_tag}")
@@ -1444,16 +1513,15 @@ def redeem_code_for_all(gift_code):
                 _dist_state["failed"] += 1
             log.info(f"  {status_icon} {status}: {result['message']}")
 
-            tg_extra = f"\n🔄 Will retry in {CONFIG['RETRY_DELAY_HOURS']} hours" if status == "FAILED" else ""
-            delivered = _dist_state["success"] + _dist_state["already_used"]
-            live_total = _dist_state["total"]  # updated dynamically if /retry injects players
-            send_telegram(
-                f"{status_icon} <b>[{processed}/{live_total}] {username or player_id}{vip_tag}</b>\n"
-                f"Code: <code>{gift_code}</code>\n"
-                f"Status: {status}\n"
-                f"Message: {result['message']}\n"
-                f"✅ {delivered} | ❌ {_dist_state['failed']}"
-                f"{tg_extra}"
+            delivered  = _dist_state["success"] + _dist_state["already_used"]
+            live_total = _dist_state["total"]
+            retry_note = f" — Will retry in {CONFIG['RETRY_DELAY_HOURS']}h" if status == "FAILED" else ""
+            send_to_channels("dist_progress",
+                code=gift_code, icon=status_icon,
+                index=processed, total=live_total,
+                username=f"{username or player_id}{vip_tag}",
+                status=status, msg=result["message"] + retry_note,
+                delivered=delivered, failed=_dist_state["failed"],
             )
 
             avg_delay = (24 * 60 * 60) / 100
@@ -1471,7 +1539,8 @@ def redeem_code_for_all(gift_code):
                         save_redemption(gift_code, pid, uname, "RETRY_PENDING", "Injected by UI retry", retry_cnt)
                     _dist_state["total"] += len(rows)
                     log.info(f"↩️ UI retry: {len(rows)} player(s) injected (new total: {_dist_state['total']})")
-                    send_telegram(f"↩️ <b>Retry:</b> {len(rows)} player(s) injected into active distribution.")
+                    send_to_channels("dist_state", code=gift_code, icon="↩️", title="Retry Injected",
+                                     detail=f"{len(rows)} player(s) re-queued into active distribution.")
                 else:
                     log.info("↩️ UI retry: no players to retry.")
             elif cmd == "cancel":
@@ -1479,14 +1548,16 @@ def redeem_code_for_all(gift_code):
                 ctrl_set("dist_paused", "0")
                 _dist_state["paused"] = False
                 log.info("⏹ Distribution cancelled via control panel.")
-                send_telegram(f"⏹ <b>Distribution cancelled.</b>\nCode: <code>{gift_code}</code>\n{processed} player(s) processed.")
+                send_to_channels("dist_state", code=gift_code, icon="⏹", title="Distribution Cancelled",
+                                 detail=f"{processed} player(s) processed.")
                 break
             elif cmd == "pause":
                 ctrl_set("dist_cmd", "")
                 ctrl_set("dist_paused", "1")
                 _dist_state["paused"] = True
                 log.info("⏸ Distribution paused. Waiting for resume or cancel...")
-                send_telegram(f"⏸ <b>Distribution paused.</b>\nCode: <code>{gift_code}</code>\n{processed}/{_dist_state['total']} processed.")
+                send_to_channels("dist_state", code=gift_code, icon="⏸", title="Distribution Paused",
+                                 detail=f"{processed}/{_dist_state['total']} processed.")
                 while True:
                     time.sleep(10)
                     resume_cmd = ctrl_get("dist_cmd")
@@ -1495,14 +1566,16 @@ def redeem_code_for_all(gift_code):
                         ctrl_set("dist_paused", "0")
                         _dist_state["paused"] = False
                         log.info("▶ Distribution resumed.")
-                        send_telegram(f"▶ <b>Distribution resumed.</b>\nCode: <code>{gift_code}</code>")
+                        send_to_channels("dist_state", code=gift_code, icon="▶", title="Distribution Resumed",
+                                         detail=f"{processed}/{_dist_state['total']} processed.")
                         break
                     elif resume_cmd == "cancel":
                         ctrl_set("dist_cmd", "")
                         ctrl_set("dist_paused", "0")
                         _dist_state["paused"] = False
                         log.info("⏹ Distribution cancelled while paused.")
-                        send_telegram(f"⏹ <b>Distribution cancelled (was paused).</b>\nCode: <code>{gift_code}</code>")
+                        send_to_channels("dist_state", code=gift_code, icon="⏹", title="Distribution Cancelled (was paused)",
+                                         detail=f"{processed}/{_dist_state['total']} processed.")
                         # Dış döngüyü kırmak için flag kullan
                         _dist_state["cancelled"] = True
                         break
@@ -1532,7 +1605,8 @@ def redeem_code_for_all(gift_code):
                     time.sleep(30)
             if not restarted:
                 log.error("  ❌ Browser could not restart after 5 attempts. Skipping player.")
-                send_telegram(f"❌ <b>Browser restart failed!</b>\nPlayer: {username} (<code>{player_id}</code>) skipped.")
+                send_to_channels("dist_state", code=gift_code, icon="❌", title="Browser Restart Failed",
+                                 detail=f"Player {username} ({player_id}) skipped.")
                 save_redemption(gift_code, player_id, username, "FAILED", "Browser could not restart")
                 processed += 1
             # If restarted: same player re-picked next iteration (no record saved).
@@ -1556,14 +1630,6 @@ def redeem_code_for_all(gift_code):
     failed       = sum(1 for r in results if r["status"] in ("FAILED", "INVALID_CODE", "UNKNOWN"))
 
     log.info(f"\n📊 Summary — {gift_code}: ✅{success} ⚠️{already_used} ❌{failed}")
-    send_telegram(
-        f"📊 <b>Redemption Complete!</b>\n"
-        f"Code: <code>{gift_code}</code>\n\n"
-        f"✅ Success: {success}\n"
-        f"⚠️ Already used: {already_used}\n"
-        f"❌ Failed: {failed}\n"
-        f"👥 Total processed: {processed}"
-    )
     send_to_channels("dist_complete",
         code=gift_code,
         delivered=success + already_used,
@@ -1638,7 +1704,8 @@ def retry_failed_players(active_codes, all_players):
         if not failed_rows:
             continue
         log.info(f"🔁 Retrying {len(failed_rows)} failed players for {code}...")
-        send_telegram(f"🔁 <b>Retrying {len(failed_rows)} failed players</b> for <code>{code}</code>")
+        send_to_channels("dist_state", code=code, icon="🔁", title="Retry Started",
+                         detail=f"Retrying {len(failed_rows)} failed player(s).")
 
         pw      = None
         browser = None
@@ -1662,7 +1729,8 @@ def retry_failed_players(active_codes, all_players):
                 time.sleep(30)
         else:
             log.error("  ❌ Browser could not be started for retry. Aborting retry for this code.")
-            send_telegram(f"❌ <b>Retry aborted!</b> Browser could not start for <code>{code}</code>")
+            send_to_channels("dist_state", code=code, icon="❌", title="Retry Aborted",
+                             detail="Browser could not start.")
             continue
 
         while i < len(failed_rows):
@@ -1687,7 +1755,8 @@ def retry_failed_players(active_codes, all_players):
                 log.info("  🔄 Restarting browser in 10s...")
                 time.sleep(10)
                 save_redemption(code, player_id, username, "FAILED", "Browser crashed during retry", retry_count + 1)
-                send_telegram(f"❌ <b>Retry crash!</b> Player {username} (<code>{player_id}</code>) skipped.")
+                send_to_channels("dist_state", code=code, icon="❌", title="Retry Crash",
+                                 detail=f"Player {username} ({player_id}) skipped.")
                 i += 1
                 # Browser'ı yeniden başlatmayı dene
                 for restart_try in range(5):
@@ -1700,7 +1769,8 @@ def retry_failed_players(active_codes, all_players):
                         time.sleep(30)
                 else:
                     log.error("  ❌ Browser could not restart during retry. Stopping retry for this code.")
-                    send_telegram(f"❌ <b>Retry browser restart failed!</b> Stopping retry for <code>{code}</code>")
+                    send_to_channels("dist_state", code=code, icon="❌", title="Retry Browser Restart Failed",
+                                     detail=f"Stopping retry for {code}.")
                     break
 
         if browser:

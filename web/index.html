@@ -876,34 +876,90 @@ input:not([class]),select:not([class]),textarea:not([class]){
       <div>
         <label class="block font-mono text-[10px] uppercase tracking-[.2em] text-out mb-3">Events</label>
         <div class="space-y-2">
-          <label class="flex items-center gap-3 cursor-pointer group">
-            <input type="checkbox" id="ch-ev-new" class="w-4 h-4 rounded accent-pc" checked/>
-            <div>
-              <div class="font-body text-sm text-os">🎉 New Gift Code Found</div>
-              <div class="font-mono text-[10px] text-out/60">Yeni bir gift code bulunduğunda</div>
-            </div>
-          </label>
-          <label class="flex items-center gap-3 cursor-pointer group">
-            <input type="checkbox" id="ch-ev-dist" class="w-4 h-4 rounded accent-pc" checked/>
-            <div>
-              <div class="font-body text-sm text-os">✅ Distribution Complete</div>
-              <div class="font-mono text-[10px] text-out/60">Dağıtım tamamlandığında</div>
-            </div>
-          </label>
-          <label class="flex items-center gap-3 cursor-pointer group">
-            <input type="checkbox" id="ch-ev-expiry" class="w-4 h-4 rounded accent-pc" checked/>
-            <div>
-              <div class="font-body text-sm text-os">⏰ Expiry Warning</div>
-              <div class="font-mono text-[10px] text-out/60">Kod sona ermeden 72 saat önce</div>
-            </div>
-          </label>
-          <label class="flex items-center gap-3 cursor-pointer group">
-            <input type="checkbox" id="ch-ev-daily" class="w-4 h-4 rounded accent-pc"/>
-            <div>
-              <div class="font-body text-sm text-os">📅 Daily Summary</div>
-              <div class="font-mono text-[10px] text-out/60">Günlük istatistik özeti (gece 00:00)</div>
-            </div>
-          </label>
+          <div class="flex items-center gap-3">
+            <label class="flex items-center gap-3 cursor-pointer group flex-1">
+              <input type="checkbox" id="ch-ev-new" class="w-4 h-4 rounded accent-pc" checked/>
+              <div>
+                <div class="font-body text-sm text-os">🎉 New Gift Code Found</div>
+                <div class="font-mono text-[10px] text-out/60">Yeni bir gift code bulunduğunda</div>
+              </div>
+            </label>
+            <select id="ch-mention-new" style="display:none" class="bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-3 py-1.5 font-mono text-xs text-os outline-none cursor-pointer" title="Discord mention">
+              <option value="none">No mention</option>
+              <option value="everyone" selected>@everyone</option>
+              <option value="here">@here</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-3">
+            <label class="flex items-center gap-3 cursor-pointer group flex-1">
+              <input type="checkbox" id="ch-ev-dist" class="w-4 h-4 rounded accent-pc" checked/>
+              <div>
+                <div class="font-body text-sm text-os">✅ Distribution Complete</div>
+                <div class="font-mono text-[10px] text-out/60">Dağıtım tamamlandığında</div>
+              </div>
+            </label>
+            <select id="ch-mention-dist" style="display:none" class="bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-3 py-1.5 font-mono text-xs text-os outline-none cursor-pointer" title="Discord mention">
+              <option value="none" selected>No mention</option>
+              <option value="everyone">@everyone</option>
+              <option value="here">@here</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-3">
+            <label class="flex items-center gap-3 cursor-pointer group flex-1">
+              <input type="checkbox" id="ch-ev-expiry" class="w-4 h-4 rounded accent-pc" checked/>
+              <div>
+                <div class="font-body text-sm text-os">⏰ Expiry Warning</div>
+                <div class="font-mono text-[10px] text-out/60">Kod sona ermeden 72 saat önce</div>
+              </div>
+            </label>
+            <select id="ch-mention-expiry" style="display:none" class="bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-3 py-1.5 font-mono text-xs text-os outline-none cursor-pointer" title="Discord mention">
+              <option value="none">No mention</option>
+              <option value="everyone" selected>@everyone</option>
+              <option value="here">@here</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-3">
+            <label class="flex items-center gap-3 cursor-pointer group flex-1">
+              <input type="checkbox" id="ch-ev-daily" class="w-4 h-4 rounded accent-pc"/>
+              <div>
+                <div class="font-body text-sm text-os">📅 Daily Summary</div>
+                <div class="font-mono text-[10px] text-out/60">Günlük istatistik özeti (gece 00:00)</div>
+              </div>
+            </label>
+            <select id="ch-mention-daily" style="display:none" class="bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-3 py-1.5 font-mono text-xs text-os outline-none cursor-pointer" title="Discord mention">
+              <option value="none" selected>No mention</option>
+              <option value="everyone">@everyone</option>
+              <option value="here">@here</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-3">
+            <label class="flex items-center gap-3 cursor-pointer group flex-1">
+              <input type="checkbox" id="ch-ev-dist-state" class="w-4 h-4 rounded accent-pc" checked/>
+              <div>
+                <div class="font-body text-sm text-os">⚙️ Distribution State</div>
+                <div class="font-mono text-[10px] text-out/60">Pause / resume / cancel / retry / expire olayları</div>
+              </div>
+            </label>
+            <select id="ch-mention-dist-state" style="display:none" class="bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-3 py-1.5 font-mono text-xs text-os outline-none cursor-pointer" title="Discord mention">
+              <option value="none" selected>No mention</option>
+              <option value="everyone">@everyone</option>
+              <option value="here">@here</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-3">
+            <label class="flex items-center gap-3 cursor-pointer group flex-1">
+              <input type="checkbox" id="ch-ev-dist-progress" class="w-4 h-4 rounded accent-pc"/>
+              <div>
+                <div class="font-body text-sm text-os">🔄 Distribution Progress</div>
+                <div class="font-mono text-[10px] text-out/60">Her oyuncu için anlık sonuç (çok sık — varsayılan kapalı)</div>
+              </div>
+            </label>
+            <select id="ch-mention-dist-progress" style="display:none" class="bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-3 py-1.5 font-mono text-xs text-os outline-none cursor-pointer" title="Discord mention">
+              <option value="none" selected>No mention</option>
+              <option value="everyone">@everyone</option>
+              <option value="here">@here</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -1869,6 +1925,14 @@ function openChannelModal(ch = null) {
   document.getElementById('ch-tpl-dist').value   = ch?.tpl_dist_complete || '';
   document.getElementById('ch-tpl-expiry').value = ch?.tpl_expiry_warning|| '';
   document.getElementById('ch-tpl-daily').value  = ch?.tpl_daily_summary || '';
+  document.getElementById('ch-ev-dist-state').checked       = ch ? !!ch.ev_dist_state    : true;
+  document.getElementById('ch-ev-dist-progress').checked    = ch ? !!ch.ev_dist_progress : false;
+  document.getElementById('ch-mention-new').value           = ch?.mention_new_code        || 'everyone';
+  document.getElementById('ch-mention-dist').value          = ch?.mention_dist_complete   || 'none';
+  document.getElementById('ch-mention-expiry').value        = ch?.mention_expiry_warning  || 'everyone';
+  document.getElementById('ch-mention-daily').value         = ch?.mention_daily_summary   || 'none';
+  document.getElementById('ch-mention-dist-state').value    = ch?.mention_dist_state      || 'none';
+  document.getElementById('ch-mention-dist-progress').value = ch?.mention_dist_progress   || 'none';
   updateChannelTargetLabel();
   document.getElementById('modal-channel').classList.add('open');
 }
@@ -1880,6 +1944,10 @@ function updateChannelTargetLabel() {
   document.getElementById('ch-target-hint').textContent = p === 'discord'
     ? 'Discord sunucunuzda bir webhook oluşturun ve URL\'sini girin.'
     : 'Botu gruba ekleyin ve Chat ID\'sini girin. @userinfobot ile öğrenebilirsiniz.';
+  ['ch-mention-new','ch-mention-dist','ch-mention-expiry','ch-mention-daily','ch-mention-dist-state','ch-mention-dist-progress'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = p === 'discord' ? 'block' : 'none';
+  });
 }
 
 function toggleChannelTemplates() {
@@ -1904,6 +1972,14 @@ async function saveChannel() {
     tpl_dist_complete: document.getElementById('ch-tpl-dist').value.trim()   || null,
     tpl_expiry_warning:document.getElementById('ch-tpl-expiry').value.trim() || null,
     tpl_daily_summary: document.getElementById('ch-tpl-daily').value.trim()  || null,
+    ev_dist_state:           document.getElementById('ch-ev-dist-state').checked,
+    ev_dist_progress:        document.getElementById('ch-ev-dist-progress').checked,
+    mention_new_code:        document.getElementById('ch-mention-new').value,
+    mention_dist_complete:   document.getElementById('ch-mention-dist').value,
+    mention_expiry_warning:  document.getElementById('ch-mention-expiry').value,
+    mention_daily_summary:   document.getElementById('ch-mention-daily').value,
+    mention_dist_state:      document.getElementById('ch-mention-dist-state').value,
+    mention_dist_progress:   document.getElementById('ch-mention-dist-progress').value,
   };
   try {
     if (_channelEditId) {
