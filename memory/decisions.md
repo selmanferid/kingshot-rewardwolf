@@ -29,18 +29,21 @@
 
 ## Notification Channels
 - `notification_channels` table stores multi-platform channels (Telegram chat_id or Discord webhook URL)
-- Per-event flags: ev_new_code, ev_dist_complete, ev_expiry_warning, ev_daily_summary
+- Per-event flags: ev_new_code, ev_dist_complete, ev_dist_state, ev_dist_progress, ev_expiry_warning, ev_daily_summary
 - Custom templates per event per channel; null = use DEFAULT_CHANNEL_TEMPLATES
 - Template variables (Telegram only): {code_fmt}, {delivered}, {failed}, {total}, {hours}, {players}, {success}, {already_used}
 - {code_fmt}: Telegram → `<pre>CODE</pre>` (code block, one-tap copy)
 - Discord: uses `_build_discord_embed(event, **kwargs)` — structured embed per event type, NO string templates
-  - new_code: gold embed, Code / Expires / Status fields + @everyone
+  - new_code: gold embed, Code / Expires / Status fields
   - dist_complete: green embed, Code / Delivered / Failed / Total fields
-  - expiry_warning: red embed, Code / Remaining / Delivered fields + @everyone
+  - dist_state: color-coded by icon (yellow=pause, green=resume, red=cancel/error), Code + Detail fields
+  - dist_progress: color by status, player index/total/status/message fields
+  - expiry_warning: red embed, Code / Remaining / Delivered fields
   - daily_summary: blue embed, Players / Delivered / Failed fields
-- `DISCORD_EVERYONE_EVENTS = {"new_code", "expiry_warning"}` — these add content: "@everyone"
-- `send_to_channels(event, **kwargs)` routes Discord → embed, Telegram → string template
-- Main new-code send_telegram() uses `<pre>CODE</pre>` block for one-tap copy
+- **Discord mention:** per-event per-channel `mention_*` column (`none`/`everyone`/`here`). No hardcoded set.
+- `send_to_channels(event, **kwargs)` routes Discord → embed (+ mention if set), Telegram → string template
+- `dist_state` default ON, `dist_progress` default OFF (high volume — one message per player)
+- **Daemon deploy rule:** `kingshot_giftcode_daemon.py` is COPYed into the image. After changes: `docker compose build daemon && docker compose up -d --force-recreate`
 
 ## Distribution Control IPC
 - Web and daemon are separate containers — no shared memory. Communication via `daemon_control` SQLite table.

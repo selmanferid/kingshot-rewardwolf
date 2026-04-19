@@ -1,6 +1,6 @@
 # Current State
 
-**Last updated:** 2026-04-19
+**Last updated:** 2026-04-19 (session 2)
 
 ## System Status
 - Production running on Raspberry Pi 4 via Docker Compose
@@ -12,7 +12,7 @@
 - Google Sheets player sync disabled — players managed via Dashboard only
 - Delivered count fixed: ALREADY_USED now counts as delivered (SUCCESS + ALREADY_USED = delivered)
 - Notification Channels system: multi-platform (Telegram + Discord), per-event toggles, custom templates
-- Gift codes copyable in Telegram (`<pre>` block); Discord uses structured embeds + @everyone
+- Gift codes copyable in Telegram (`<pre>` block); Discord uses structured embeds with per-event mention control
 - player_name_history table added; player modal shows name change history
 - Code active status based solely on expires_at (future → active, past/null+inactive → expired)
 - New player auto-distribution: newly added players trigger reset of completed active codes
@@ -43,8 +43,15 @@
 ## Notification Channel Events
 - `new_code` — fired once per code when first discovered
 - `dist_complete` — fired when full distribution run finishes
+- `dist_state` — pause/resume/cancel/retry/expire/browser-crash events (default ON)
+- `dist_progress` — per-player redemption result during distribution (default OFF)
 - `expiry_warning` — fired 72h before code expiry
 - `daily_summary` — fired at midnight UTC
+
+## Notification Channel Columns
+- `ev_*` — event toggle (INTEGER 0/1)
+- `tpl_*` — custom template (TEXT, null = default)
+- `mention_*` — Discord mention type per event: `none` / `everyone` / `here`
 
 ## Known Active Issues
 - None at time of writing
