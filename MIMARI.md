@@ -49,16 +49,21 @@ Yoğun okuma/yazma işlemi için SQLite WAL (Write-Ahead Logging) modunda çalı
 
 Her oyuncu-kod çifti için aşağıdaki durumlardan biri kaydedilir:
 
-| Durum | Anlamı | Delivered sayılır mı? |
-|-------|--------|----------------------|
-| `SUCCESS` | Kod başarıyla işlendi | ✅ Evet |
-| `ALREADY_USED` | Oyuncu kodu zaten almış | ✅ Evet |
-| `FAILED` | Geçici hata — yeniden denenecek | ❌ Hayır |
-| `INVALID_CODE` | Kod geçersiz veya süresi dolmuş | ❌ Hayır |
-| `SERVER_BUSY` | Sunucu yanıt vermedi | ❌ Hayır |
-| `RETRY_PENDING` | `/retry` komutuyla aktif dağıtıma enjekte edildi | ❌ Hayır (işlenene kadar) |
+| Durum | Anlamı | Retry? |
+|-------|--------|--------|
+| `SUCCESS` | Kod başarıyla işlendi | — |
+| `ALREADY_USED` | Oyuncu kodu zaten almış | — |
+| `FAILED` | Geçici hata | ✅ 2h sonra, max 3 kez |
+| `INVALID_CODE` | Kod geçersiz / bulunamadı (büyük-küçük harf) → **kod pasife alınır** | ❌ |
+| `SERVER_BUSY` | Sunucu yanıt vermedi | ❌ |
+| `LIMIT_REACHED` | Kodun claim limiti dolmuş (geliştirici kodu) → **2h sonra tekrar dener, 3 denemede pasife alır** | ✅ 2h sonra, max 2 kez |
+| `RETRY_PENDING` | `/retry` komutuyla aktif dağıtıma enjekte edildi | — (işlenene kadar) |
 
-`ALREADY_USED`, oyuncunun ödülü başka kanaldan aldığını teyit eder — bu durum "teslim edildi" olarak sayılır.
+`ALREADY_USED`, oyuncunun ödülü başka kanaldan aldığını teyit eder — "teslim edildi" sayılır.
+
+`LIMIT_REACHED` kod düzeyinde bir sorundur: ilk tetiklendiğinde kalan tüm oyuncular da aynı statüye alınır ve 2h sonra toplu retry başlar. 3 deneme (6 saat) sonunda kod pasife alınır. Pasif kod, WebUI'dan tekrar eklenerek reaktive edilebilir.
+
+**LIMIT_REACHED retry bağımsız çalışır:** Normal dağıtım (24 saat sürebilir) beklenilmez. `code_check_loop` 2 saat dolduğunda kendi `sync_playwright()` bağlamıyla ayrı bir thread açar. Aynı anda yalnızca bir LIMIT_REACHED retry thread'i çalışabilir (`_limit_retry_active` flag).
 
 ## 6. Dağıtım Kontrol Mekanizması
 
@@ -77,7 +82,7 @@ Komutların etkisi **anlık değildir** — mevcut oyuncu için olan sleep (~10d
 
 1. **Kod Kontrolü:** `Daemon` → `KingShot API` → Yeni kod bulunursa `active_codes` tablosuna eklenir. `notified=0` ise Telegram + notification channels'a bildirim gönderilir ve `notified=1` set edilir (spam önleme).
 2. **Redeem Süreci:** `Daemon` → `Playwright (host Chromium)` → `https://ks-giftcode.centurygame.com/` → Yanıt parse edilir → Veritabanına kaydedilir.
-3. **Retry:** `FAILED` statüsündeki kayıtlar, `RETRY_DELAY_HOURS` (varsayılan 2 saat) sonra tekrar denenir.
+3. **Retry:** `FAILED` statüsündeki kayıtlar `RETRY_DELAY_HOURS` (varsayılan 2 saat) sonra, `LIMIT_REACHED` kayıtlar ise 2 saat sonra (max 2 tekrar = 3 toplam deneme) yeniden işlenir. `code_check_loop` periyodik olarak bekleyen LIMIT_REACHED kodlarını kontrol eder ve **aktif dağıtımdan bağımsız** bir thread'de (`_run_limit_retry`) çalıştırır.
 4. **Bildirim:** Tüm bildirimler `send_to_channels(event, **kwargs)` üzerinden konfigüre edilmiş kanallara gider. Desteklenen event'ler:
    - `new_code` — Yeni kod bulundu
    - `dist_complete` — Dağıtım tamamlandı (özet istatistik)

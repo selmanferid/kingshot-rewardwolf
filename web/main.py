@@ -556,10 +556,11 @@ def distribution_status(_=Depends(verify_token)):
         SELECT
             ac.code, ac.expires_at, ac.is_currently_active, ac.is_completed,
             ac.player_count,
-            COALESCE(SUM(CASE WHEN r.status='SUCCESS'      THEN 1 ELSE 0 END), 0) as success,
-            COALESCE(SUM(CASE WHEN r.status='ALREADY_USED' THEN 1 ELSE 0 END), 0) as already_used,
-            COALESCE(SUM(CASE WHEN r.status='FAILED'       THEN 1 ELSE 0 END), 0) as failed,
-            COALESCE(SUM(CASE WHEN r.status='SERVER_BUSY'  THEN 1 ELSE 0 END), 0) as server_busy,
+            COALESCE(SUM(CASE WHEN r.status='SUCCESS'       THEN 1 ELSE 0 END), 0) as success,
+            COALESCE(SUM(CASE WHEN r.status='ALREADY_USED'  THEN 1 ELSE 0 END), 0) as already_used,
+            COALESCE(SUM(CASE WHEN r.status='FAILED'        THEN 1 ELSE 0 END), 0) as failed,
+            COALESCE(SUM(CASE WHEN r.status='SERVER_BUSY'   THEN 1 ELSE 0 END), 0) as server_busy,
+            COALESCE(SUM(CASE WHEN r.status='LIMIT_REACHED' THEN 1 ELSE 0 END), 0) as limit_reached,
             COUNT(r.player_id) as processed
         FROM active_codes ac
         LEFT JOIN redemptions r ON r.code = ac.code
@@ -602,16 +603,21 @@ def add_code_manual(body: AddCodeBody, _=Depends(verify_token)):
     if not code:
         raise HTTPException(status_code=400, detail="Code is required")
     conn = db()
-    existing = conn.execute("SELECT code, is_completed FROM active_codes WHERE code=?", (code,)).fetchone()
+    existing = conn.execute("SELECT code, is_completed, is_currently_active FROM active_codes WHERE code=?", (code,)).fetchone()
     if existing:
-        if existing["is_completed"]:
+        if existing["is_completed"] or not existing["is_currently_active"]:
+            # Reset LIMIT_REACHED redemptions so the code can be fully redistributed
+            conn.execute(
+                "DELETE FROM redemptions WHERE code=? AND status='LIMIT_REACHED'",
+                (code,)
+            )
             conn.execute(
                 "UPDATE active_codes SET is_completed=0, is_currently_active=1, notified=0, last_updated=? WHERE code=?",
                 (datetime.now(timezone.utc).isoformat(), code)
             )
             conn.commit()
             conn.close()
-            return {"ok": True, "message": "Code reset for redistribution"}
+            return {"ok": True, "message": "Code reactivated for redistribution"}
         conn.close()
         return {"ok": False, "message": "Code already active"}
     conn.execute(

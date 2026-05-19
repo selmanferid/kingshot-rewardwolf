@@ -1478,7 +1478,7 @@ function setHealthBar(key, val, unit, warn) {
 
 async function loadPlayers() {
   allPlayers = await apiFetch('/players');
-  renderPlayers(allPlayers);
+  filterPlayers();
 }
 
 function roleBadge(role) {

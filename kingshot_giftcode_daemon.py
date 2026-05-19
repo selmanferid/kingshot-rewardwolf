@@ -76,6 +76,8 @@ _last_summary_date = None
 _last_health_alert = {}
 _last_name_sync        = None
 _last_player_check_ts  = None  # Yeni oyuncu tespiti için
+_limit_retry_active    = False
+_limit_retry_lock      = threading.Lock()
 
 # Active distribution state (for web UI and /status command)
 _dist_state = {
@@ -303,13 +305,18 @@ def get_telegram_updates():
         return []
     try:
         url = f"https://api.telegram.org/bot{CONFIG['TELEGRAM_TOKEN']}/getUpdates"
-        resp = requests.get(url, params={"offset": _telegram_offset, "timeout": 2}, timeout=5)
+        resp = requests.post(url, json={
+            "offset": _telegram_offset,
+            "timeout": 2,
+            "allowed_updates": ["message", "channel_post"],
+        }, timeout=5)
         data = resp.json()
         updates = data.get("result", [])
         if updates:
             _telegram_offset = updates[-1]["update_id"] + 1
         return updates
-    except Exception:
+    except Exception as e:
+        log.debug(f"getUpdates error: {e}")
         return []
 
 def init_telegram_offset():
@@ -317,6 +324,16 @@ def init_telegram_offset():
     global _telegram_offset
     if not CONFIG["TELEGRAM_TOKEN"]:
         return
+    try:
+        # allowed_updates'i channel_post içerecek şekilde güncelle
+        dw_url = f"https://api.telegram.org/bot{CONFIG['TELEGRAM_TOKEN']}/deleteWebhook"
+        dw_resp = requests.post(dw_url, json={"drop_pending_updates": False}, timeout=5)
+        log.info(f"🔧 deleteWebhook: {dw_resp.json()}")
+        # allowed_updates'i kayıt et
+        sw_url = f"https://api.telegram.org/bot{CONFIG['TELEGRAM_TOKEN']}/setWebhook"
+        requests.post(sw_url, json={"url": "", "allowed_updates": ["message", "channel_post"]}, timeout=5)
+    except Exception as e:
+        log.warning(f"Webhook init error: {e}")
     try:
         url = f"https://api.telegram.org/bot{CONFIG['TELEGRAM_TOKEN']}/getUpdates"
         resp = requests.get(url, params={"offset": -1, "timeout": 1}, timeout=5)
@@ -660,17 +677,20 @@ def get_failed_players(code, ignore_delay=False):
         c.execute("""
             SELECT player_id, username, retry_count FROM redemptions
             WHERE code=?
-              AND status NOT IN ('SUCCESS', 'ALREADY_USED', 'INVALID_CODE', 'SERVER_BUSY')
-              AND retry_count < 3
+              AND (
+                (status NOT IN ('SUCCESS', 'ALREADY_USED', 'INVALID_CODE', 'SERVER_BUSY', 'LIMIT_REACHED') AND retry_count < 3)
+                OR (status = 'LIMIT_REACHED' AND retry_count < 2)
+              )
         """, (code,))
     else:
         retry_after = (datetime.now(timezone.utc) - timedelta(hours=CONFIG["RETRY_DELAY_HOURS"])).isoformat()
         c.execute("""
             SELECT player_id, username, retry_count FROM redemptions
             WHERE code=?
-              AND status NOT IN ('SUCCESS', 'ALREADY_USED', 'INVALID_CODE', 'SERVER_BUSY')
-              AND created_at <= ?
-              AND retry_count < 3
+              AND (
+                (status NOT IN ('SUCCESS', 'ALREADY_USED', 'INVALID_CODE', 'SERVER_BUSY', 'LIMIT_REACHED') AND retry_count < 3)
+                OR (status = 'LIMIT_REACHED' AND retry_count < 2 AND created_at <= ?)
+              )
         """, (code, retry_after))
     rows = c.fetchall()
     conn.close()
@@ -709,6 +729,15 @@ def sync_active_codes(api_codes_data):
             existing = db_codes[code]
             new_expiry = code_data.get("expiresAt")
             if existing["is_currently_active"] == 0:
+                # Don't reactivate if LIMIT_REACHED exhausted (retry_count >= 2 on all remaining)
+                exhausted = c.execute("""
+                    SELECT 1 FROM redemptions
+                    WHERE code=? AND status='LIMIT_REACHED' AND retry_count >= 2
+                    LIMIT 1
+                """, (code,)).fetchone()
+                if exhausted:
+                    log.info(f"⚫ Code {code} stays deactivated — LIMIT_REACHED exhausted, manual reactivation required")
+                    continue
                 # Reactivated — reset completed so missing players get it
                 log.info(f"♻️ Code reactivated: {code} — resetting completed status")
                 c.execute("""
@@ -757,7 +786,7 @@ def is_code_completed(code):
 def mark_code_completed(code, results):
     success      = sum(1 for r in results if r["status"] == "SUCCESS")
     already_used = sum(1 for r in results if r["status"] == "ALREADY_USED")
-    failed       = sum(1 for r in results if r["status"] in ("FAILED", "INVALID_CODE", "UNKNOWN", "SERVER_BUSY"))
+    failed       = sum(1 for r in results if r["status"] in ("FAILED", "INVALID_CODE", "UNKNOWN", "SERVER_BUSY", "LIMIT_REACHED"))
     conn = db_connect()
     c = conn.cursor()
     c.execute("""
@@ -768,17 +797,47 @@ def mark_code_completed(code, results):
     conn.commit()
     conn.close()
 
+def deactivate_code(code, reason=""):
+    conn = db_connect()
+    conn.execute(
+        "UPDATE active_codes SET is_currently_active=0, last_updated=? WHERE code=?",
+        (datetime.now(timezone.utc).isoformat(), code)
+    )
+    conn.commit()
+    conn.close()
+    log.warning(f"⚫ Code {code} deactivated. {reason}")
+
 def update_code_progress(code, results):
     """Update progress stats without marking as completed."""
     success      = sum(1 for r in results if r["status"] == "SUCCESS")
     already_used = sum(1 for r in results if r["status"] == "ALREADY_USED")
-    failed       = sum(1 for r in results if r["status"] in ("FAILED", "INVALID_CODE", "UNKNOWN"))
+    failed       = sum(1 for r in results if r["status"] in ("FAILED", "INVALID_CODE", "UNKNOWN", "LIMIT_REACHED"))
     conn = db_connect()
     c = conn.cursor()
     c.execute("""
         UPDATE active_codes SET total=?, success=?, already_used=?, failed=?, last_updated=?
         WHERE code=?
     """, (len(results), success, already_used, failed,
+          datetime.now(timezone.utc).isoformat(), code))
+    conn.commit()
+    conn.close()
+
+def refresh_code_stats(code):
+    """Redemptions tablosunu okuyarak active_codes istatistiklerini günceller.
+    Retry sonrası çağrılır — results listesi yerine DB'deki gerçek durumu yansıtır."""
+    conn = db_connect()
+    row = conn.execute("""
+        SELECT
+            COUNT(*) as total,
+            COALESCE(SUM(CASE WHEN status='SUCCESS'      THEN 1 ELSE 0 END), 0) as success,
+            COALESCE(SUM(CASE WHEN status='ALREADY_USED' THEN 1 ELSE 0 END), 0) as already_used,
+            COALESCE(SUM(CASE WHEN status NOT IN ('SUCCESS','ALREADY_USED') THEN 1 ELSE 0 END), 0) as failed
+        FROM redemptions WHERE code=?
+    """, (code,)).fetchone()
+    conn.execute("""
+        UPDATE active_codes SET total=?, success=?, already_used=?, failed=?, last_updated=?
+        WHERE code=?
+    """, (row["total"], row["success"], row["already_used"], row["failed"],
           datetime.now(timezone.utc).isoformat(), code))
     conn.commit()
     conn.close()
@@ -925,7 +984,7 @@ def check_expiry_warnings(codes_data, all_players):
             log.warning(f"⚠️ Code expiring soon: {code} — {hours_left}h left")
 
             status_map = get_code_status_map(code)
-            delivered_ids = {pid for pid, status in status_map.items() if status == "SUCCESS"}
+            delivered_ids = {pid for pid, st in status_map.items() if st in ("SUCCESS", "ALREADY_USED")}
             undelivered = [p for p in all_players if p["playerId"] not in delivered_ids]
 
             msg = (
@@ -1183,8 +1242,8 @@ def parse_message(msg_text):
         return "ALREADY_USED", msg_text
     if any(x in msg_lower for x in ["not found", "invalid", "expired", "wrong", "case-sensitive"]):
         return "INVALID_CODE", msg_text
-    if any(x in msg_lower for x in ["claim limit", "unable to claim", "cannot claim", "limit reached"]):
-        return "FAILED", msg_text
+    if any(x in msg_lower for x in ["claim limit", "limit reached"]):
+        return "LIMIT_REACHED", msg_text
     if any(x in msg_lower for x in ["server busy", "please try again later", "try again later", "too many", "service unavailable", "please log in", "log in to relevant", "character before redemption"]):
         return "SERVER_BUSY", msg_text
     return "UNKNOWN", msg_text
@@ -1435,6 +1494,7 @@ def redeem_code_for_all(gift_code):
 
     results = []
     processed = 0
+    stop_reason = "complete"  # "complete" | "limit_reached" | "invalid_code" | "expired" | "cancelled"
     pw = None
     browser = None
     code_expires_at = get_code_expiry(gift_code)  # cached once — avoid per-player DB hit
@@ -1488,6 +1548,8 @@ def redeem_code_for_all(gift_code):
             log.warning(f"⏰ Code {gift_code} has expired (UTC). Stopping distribution.")
             send_to_channels("dist_state", code=gift_code, icon="⏰", title="Code Expired!",
                              detail=f"Stopped after {processed} players.")
+            deactivate_code(gift_code, "Expired during distribution.")
+            stop_reason = "expired"
             break
 
         log.info(f"🔄 [{processed + 1}] {player_id} ({username}){vip_tag}{role_tag}")
@@ -1504,14 +1566,43 @@ def redeem_code_for_all(gift_code):
 
             status = result["status"]
             status_icon = {"SUCCESS": "✅", "ALREADY_USED": "⚠️", "INVALID_CODE": "❌",
-                           "FAILED": "❌", "UNKNOWN": "❓", "SERVER_BUSY": "🔄"}.get(status, "❓")
+                           "FAILED": "❌", "UNKNOWN": "❓", "SERVER_BUSY": "🔄",
+                           "LIMIT_REACHED": "🚫"}.get(status, "❓")
             if status == "SUCCESS":
                 _dist_state["success"] += 1
             elif status == "ALREADY_USED":
                 _dist_state["already_used"] += 1
-            elif status in ("FAILED", "INVALID_CODE", "UNKNOWN", "SERVER_BUSY"):
+            elif status in ("FAILED", "INVALID_CODE", "UNKNOWN", "SERVER_BUSY", "LIMIT_REACHED"):
                 _dist_state["failed"] += 1
             log.info(f"  {status_icon} {status}: {result['message']}")
+
+            if status == "INVALID_CODE":
+                log.warning(f"❌ Invalid code {gift_code} — deactivating.")
+                send_to_channels("dist_state", code=gift_code, icon="❌", title="Invalid Code — Deactivated",
+                                 detail="Gift code not found or case-sensitive mismatch. Code deactivated.")
+                deactivate_code(gift_code, "INVALID_CODE during distribution.")
+                stop_reason = "invalid_code"
+                break
+
+            if status == "LIMIT_REACHED":
+                log.warning(f"🚫 Claim limit reached for code {gift_code} — attempt 1/3, retrying in {CONFIG['RETRY_DELAY_HOURS']}h")
+                # Bulk-save all remaining unprocessed players so they enter the retry queue
+                conn = db_connect()
+                remaining = conn.execute("""
+                    SELECT p.player_id, COALESCE(p.username, p.player_id) AS username
+                    FROM players p
+                    LEFT JOIN redemptions r ON r.player_id = p.player_id AND r.code = ?
+                    WHERE p.removed_at IS NULL AND r.status IS NULL
+                """, (gift_code,)).fetchall()
+                conn.close()
+                for rem in remaining:
+                    save_redemption(gift_code, rem["player_id"], rem["username"],
+                                    "LIMIT_REACHED", "Skipped — claim limit reached", 0)
+                _dist_state["failed"] += len(remaining)
+                send_to_channels("dist_state", code=gift_code, icon="🚫", title="Claim Limit Reached (1/3)",
+                                 detail=f"Code hit its claim limit. Will retry in {CONFIG['RETRY_DELAY_HOURS']}h (attempt 1/3).")
+                stop_reason = "limit_reached"
+                break
 
             delivered  = _dist_state["success"] + _dist_state["already_used"]
             live_total = _dist_state["total"]
@@ -1550,6 +1641,7 @@ def redeem_code_for_all(gift_code):
                 log.info("⏹ Distribution cancelled via control panel.")
                 send_to_channels("dist_state", code=gift_code, icon="⏹", title="Distribution Cancelled",
                                  detail=f"{processed} player(s) processed.")
+                stop_reason = "cancelled"
                 break
             elif cmd == "pause":
                 ctrl_set("dist_cmd", "")
@@ -1581,6 +1673,7 @@ def redeem_code_for_all(gift_code):
                         break
                 if _dist_state.get("cancelled"):
                     _dist_state["cancelled"] = False
+                    stop_reason = "cancelled"
                     break
 
         except Exception as e:
@@ -1627,17 +1720,18 @@ def redeem_code_for_all(gift_code):
 
     success      = sum(1 for r in results if r["status"] == "SUCCESS")
     already_used = sum(1 for r in results if r["status"] == "ALREADY_USED")
-    failed       = sum(1 for r in results if r["status"] in ("FAILED", "INVALID_CODE", "UNKNOWN"))
+    failed       = sum(1 for r in results if r["status"] in ("FAILED", "INVALID_CODE", "UNKNOWN", "LIMIT_REACHED"))
 
-    log.info(f"\n📊 Summary — {gift_code}: ✅{success} ⚠️{already_used} ❌{failed}")
-    send_to_channels("dist_complete",
-        code=gift_code,
-        delivered=success + already_used,
-        success=success,
-        already_used=already_used,
-        failed=failed,
-        total=processed,
-    )
+    log.info(f"\n📊 Summary — {gift_code}: ✅{success} ⚠️{already_used} ❌{failed} (stop_reason={stop_reason})")
+    if stop_reason == "complete":
+        send_to_channels("dist_complete",
+            code=gift_code,
+            delivered=success + already_used,
+            success=success,
+            already_used=already_used,
+            failed=failed,
+            total=processed,
+        )
 
     _dist_state["active"] = False
     _dist_state["paused"] = False
@@ -1698,7 +1792,6 @@ def sync_player_names():
 #  RETRY
 # ============================================================
 def retry_failed_players(active_codes, all_players):
-    player_map = {p["playerId"]: p for p in all_players}
     for code in active_codes:
         failed_rows = get_failed_players(code)
         if not failed_rows:
@@ -1741,6 +1834,26 @@ def retry_failed_players(active_codes, all_players):
                 save_redemption(code, player_id, username, result["status"], result["message"], retry_count + 1)
                 icon = {"SUCCESS": "✅", "ALREADY_USED": "⚠️"}.get(result["status"], "❌")
                 log.info(f"    {icon} {result['status']}: {result['message']}")
+
+                if result["status"] == "LIMIT_REACHED":
+                    new_rc = retry_count + 1  # already saved above
+                    attempt_num = new_rc + 1  # 1-based: new_rc=1 → attempt 2, new_rc=2 → attempt 3
+                    # Bulk-save remaining players in this retry batch
+                    for j in range(i + 1, len(failed_rows)):
+                        rem_pid, rem_uname, rem_rc = failed_rows[j]
+                        save_redemption(code, rem_pid, rem_uname, "LIMIT_REACHED",
+                                        "Skipped — claim limit reached", new_rc)
+                    if new_rc >= 2:
+                        log.warning(f"🚫 Claim limit reached for {code} — all 3 attempts exhausted (6h elapsed), deactivating")
+                        deactivate_code(code, "LIMIT_REACHED x3.")
+                        send_to_channels("dist_state", code=code, icon="🚫", title="Claim Limit — Code Deactivated",
+                                         detail=f"Code hit its claim limit on all 3 attempts (6h). Code deactivated. Re-add manually to retry.")
+                    else:
+                        log.warning(f"🚫 Claim limit reached for {code} — attempt {attempt_num}/3, retrying in {CONFIG['RETRY_DELAY_HOURS']}h")
+                        send_to_channels("dist_state", code=code, icon="🚫", title=f"Claim Limit Reached ({attempt_num}/3)",
+                                         detail=f"Code still at claim limit. Will retry in {CONFIG['RETRY_DELAY_HOURS']}h (attempt {attempt_num}/3).")
+                    break
+
                 i += 1
                 if i < len(failed_rows):
                     time.sleep(random.randint(30, 60))
@@ -1784,6 +1897,18 @@ def retry_failed_players(active_codes, all_players):
             except Exception:
                 pass
         kill_zombie_chromium()
+        refresh_code_stats(code)
+
+def _run_limit_retry(codes, players):
+    """LIMIT_REACHED retry'ını bağımsız bir thread'de çalıştırır."""
+    global _limit_retry_active
+    with _limit_retry_lock:
+        _limit_retry_active = True
+    try:
+        retry_failed_players(codes, players)
+    finally:
+        with _limit_retry_lock:
+            _limit_retry_active = False
 
 # ============================================================
 #  STARTUP MESSAGE
@@ -1819,7 +1944,7 @@ def build_startup_message(active_codes_data):
             status_map = get_code_status_map(code)
             success_cnt = sum(1 for s in status_map.values() if s == "SUCCESS")
             already_cnt = sum(1 for s in status_map.values() if s == "ALREADY_USED")
-            failed_cnt  = sum(1 for s in status_map.values() if s in ("FAILED", "INVALID_CODE", "UNKNOWN", "SERVER_BUSY"))
+            failed_cnt  = sum(1 for s in status_map.values() if s in ("FAILED", "INVALID_CODE", "UNKNOWN", "SERVER_BUSY", "LIMIT_REACHED"))
             delivered   = success_cnt + already_cnt
             pending     = total_players - delivered - failed_cnt
 
@@ -1881,7 +2006,11 @@ def telegram_command_loop():
         try:
             updates = get_telegram_updates()
             for update in updates:
-                msg = update.get("message", {})
+                update_keys = [k for k in update if k != "update_id"]
+                log.info(f"📥 Update keys: {update_keys}")
+                # channel_post veya normal message'ı destekle
+                is_channel = "channel_post" in update
+                msg = update.get("channel_post") or update.get("message", {})
                 text = msg.get("text", "").strip()
                 chat = msg.get("chat", {})
                 chat_id   = str(chat.get("id", ""))
@@ -1890,8 +2019,10 @@ def telegram_command_loop():
                 from_user = msg.get("from", {})
                 from_name = from_user.get("username") or from_user.get("first_name") or "?"
 
-                # Her mesajda chat info'yu logla (Chat ID almayı kolaylaştırır)
-                log.info(f"💬 Message from [{chat_type}] '{chat_name}' | chat_id={chat_id} | user=@{from_name} | text={text[:60]!r}")
+                if is_channel:
+                    log.info(f"📢 Channel post from '{chat_name}' | chat_id={chat_id} | text={text[:60]!r}")
+                else:
+                    log.info(f"💬 Message from [{chat_type}] '{chat_name}' | chat_id={chat_id} | user=@{from_name} | text={text[:60]!r}")
 
                 if not text.startswith("/"):
                     continue
@@ -2135,6 +2266,8 @@ def telegram_command_loop():
 
 
                 elif cmd == "/chatid":
+                    source = "channel_post" if is_channel else "message"
+                    log.info(f"🆔 /chatid requested | source={source} | chat_id={chat_id} | type={chat_type} | name={chat_name}")
                     send_telegram(
                         f"🆔 <b>Chat Info</b>\n\n"
                         f"Chat ID: <code>{chat_id}</code>\n"
@@ -2265,7 +2398,7 @@ def main():
 
                 active_codes, codes_data = fetch_active_gift_codes(
                     run_expiry_check=not _is_first_run,
-                    all_players=players
+                    all_players=get_active_players() if not _is_first_run else []
                 )
 
                 # expires_at IS NULL olan aktif kodların expiry'sini ayrıca kontrol et
@@ -2298,9 +2431,19 @@ def main():
                     conn.close()
 
                     # Kuyruğa ekleme — kuyrukta yoksa VE şu an dağıtılmıyorsa
-                    if code not in queued and not currently_dist:
+                    # LIMIT_REACHED bekleyen oyuncular varsa kuyruğa alma — retry mekanizması halleder
+                    lconn = db_connect()
+                    has_limit_pending = lconn.execute("""
+                        SELECT 1 FROM redemptions
+                        WHERE code=? AND status='LIMIT_REACHED' AND retry_count < 2
+                        LIMIT 1
+                    """, (code,)).fetchone()
+                    lconn.close()
+                    if code not in queued and not currently_dist and not has_limit_pending:
                         _code_queue.put(code)
                         newly_queued.append(code)
+                    elif has_limit_pending:
+                        log.info(f"  ⏳ {code} waiting for LIMIT_REACHED retry — not re-queuing")
 
                 if newly_queued:
                     log.info(f"  ➕ Queued for distribution: {newly_queued}")
@@ -2351,7 +2494,35 @@ def main():
                         log.warning(f"New player check error: {e}")
                     _last_player_check_ts = now_iso
 
+                was_first_run = _is_first_run
                 _is_first_run = False
+
+                # Periyodik LIMIT_REACHED retry — aktif dağıtımdan bağımsız thread'de çalışır
+                if not was_first_run:
+                    with _limit_retry_lock:
+                        already_running = _limit_retry_active
+                    if not already_running:
+                        try:
+                            retry_after = (datetime.now(timezone.utc) - timedelta(hours=CONFIG["RETRY_DELAY_HOURS"])).isoformat()
+                            conn = db_connect()
+                            limit_codes = conn.execute("""
+                                SELECT DISTINCT code FROM redemptions
+                                WHERE status = 'LIMIT_REACHED' AND retry_count < 2
+                                  AND created_at <= ?
+                            """, (retry_after,)).fetchall()
+                            conn.close()
+                            pending_limit = [r["code"] for r in limit_codes]
+                            if pending_limit:
+                                log.info(f"🔁 Spawning LIMIT_REACHED retry thread for: {pending_limit}")
+                                threading.Thread(
+                                    target=_run_limit_retry,
+                                    args=(pending_limit, get_active_players()),
+                                    daemon=True
+                                ).start()
+                        except Exception as e:
+                            log.warning(f"Periodic LIMIT_REACHED retry error: {e}")
+                    else:
+                        log.info("⏳ LIMIT_REACHED retry already running — skipping this cycle")
 
             except Exception as e:
                 log.error(f"Code check loop error: {e}")
@@ -2369,15 +2540,13 @@ def main():
             code = _code_queue.get(timeout=30)
             log.info(f"📦 Distributing queued code: {code}")
             results = redeem_code_for_all(code)
-            if results:
-                send_results_to_sheets(code, results)
-                update_code_progress(code, results)
             status_map = get_code_status_map(code)
             pending = [p for p in get_active_players() if status_map.get(p["playerId"]) not in ("SUCCESS", "ALREADY_USED")]
             if not pending:
                 mark_code_completed(code, results)
                 log.info(f"✅ Code {code} fully completed.")
             else:
+                update_code_progress(code, results)
                 log.info(f"⏳ Code {code} pending for {len(pending)} player(s).")
             retry_failed_players([code], get_active_players())
 
