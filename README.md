@@ -2,6 +2,8 @@
 
 Automated gift code redemption daemon for KingShot mobile game. Monitors new codes via API, redeems them for all alliance members using Playwright/Chromium, with Telegram bot control and a web dashboard. Built for Raspberry Pi 4.
 
+> **⏸️ Development paused (2026-08-23).** The daemon remains deployed and in active use; no new features are currently planned.
+
 ---
 
 ## Features
@@ -143,6 +145,15 @@ See `.env.example` for all available configuration options.
 | `REBUILD_SERVER_URL` | Local rebuild server URL |
 | `DOCKER_TCP_URL` | Docker TCP API URL |
 | `DASHBOARD_URL` | Public dashboard URL |
+
+---
+
+## 🤝 Related
+
+Part of the [WLF] The Wolf Pack bot suite — the three projects are interconnected:
+
+- [Hati Bot](https://github.com/selmanferid/hati-bot) — WLF community & fun bot
+- [Sköll Bot](https://github.com/selmanferid/skoll-bot) — KingShot bot, consumes Rewardwolf's gift code API for Discord notifications
 
 ---
 
