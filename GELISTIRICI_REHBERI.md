@@ -24,12 +24,13 @@ Proje hem Raspberry Pi (ARM64) üzerinde hem de Windows/Mac sistemlerde çalış
 
 ## 2. API Tasarımı (Web Backend)
 
-`web/main.py` içerisindeki tüm rotalar JWT tabanlı `/api/auth/login` tokeniyle korunmaktadır.
+`web/main.py` içerisindeki tüm rotalar JWT tabanlı `/api/auth/login` tokeniyle korunmaktadır. Public endpoint'ler (`/api/public/*`) `X-API-Key` header'ı ile korunur.
 
-- `/api/dashboard` — Ana ekran istatistikleri.
+- `/api/dashboard` — Ana ekran istatistikleri (kodlar, oyuncular, sağlık metrikleri dahil).
+- `/api/health` — Yalnızca CPU / RAM / sıcaklık; hafif sorgu. Daemon kontrol sayfasındaki metrik barları buradan beslenir.
 - `/api/players` — Oyuncu işlemleri (CRUD); tüm oyuncu yönetimi buradan yapılır.
 - `/api/logs` — Kuyruk (tail) tabanlı asenkron log takibi.
-- `/api/settings` — Web üzerinden yapılandırmayı güncelleme.
+- `/api/settings` — Web üzerinden yapılandırmayı güncelleme. Yalnızca sayısal config değerlerini döndürür; token/credential içermez.
 - `/api/distribution/status` — Aktif kodlar, dağıtım ilerleme yüzdesi ve `paused` durumu. `{codes: [...], paused: bool}` döner.
 - `POST /api/distribution/pause` — `daemon_control.dist_cmd = 'pause'` yazar.
 - `POST /api/distribution/resume` — `dist_cmd = 'resume'`, `dist_paused = '0'` yazar.
@@ -37,6 +38,7 @@ Proje hem Raspberry Pi (ARM64) üzerinde hem de Windows/Mac sistemlerde çalış
 - `POST /api/distribution/retry` — `dist_cmd = 'retry'` yazar; daemon RETRY_PENDING oyuncuları aktif dağıtıma enjekte eder.
 - `POST /api/codes/add` — Manuel kod ekleme, tamamlanmış veya pasife alınmış kodu reaktive etme. Pasif koda tekrar girildiğinde `LIMIT_REACHED` kayıtları silinir ve dağıtım sıfırdan başlar.
 - `GET /api/daemon/uptime` — Docker container StartedAt bilgisi.
+- `PATCH /api/channels/{id}` — Kanal güncelleme. `exclude_unset` kullanır; gönderilmeyen alanlar değişmez. Template'i temizlemek için `null` gönderilebilir.
 
 Yeni bir endpoint eklerken:
 ```python
@@ -76,12 +78,14 @@ Web container'dan host Docker'a doğrudan erişim olmadığı için "Sunucuyu Ye
 
 `send_to_channels(event, **kwargs)` ile tüm kanallar yönetilir. Yeni event eklemek için:
 
-1. `DEFAULT_CHANNEL_TEMPLATES` sözlüğüne varsayılan şablonu ekle
+1. `DEFAULT_CHANNEL_TEMPLATES` sözlüğüne varsayılan şablonu ekle — hem `kingshot_giftcode_daemon.py` hem de `web/main.py` içinde
 2. `_build_discord_embed()` fonksiyonuna yeni `if event == "..."` bloğu ekle
 3. `notification_channels` tablosuna `ev_<event>`, `tpl_<event>`, `mention_<event>` kolonlarını ekle (daemon ve web/main.py her ikisinde de)
 4. Migration koduna ALTER TABLE satırlarını ekle
 5. `ChannelCreate` / `ChannelUpdate` Pydantic modellerini güncelle
-6. UI modal'ına event checkbox ve mention dropdown ekle
+6. `list_channels` endpoint'indeki default doldurma döngüsüne yeni event'i ekle
+7. UI `EVENT_LABELS` nesnesine yeni event'i ekle (index.html) — kanal kartlarında chip olarak gösterilmesi için
+8. UI modal'ına event checkbox ve mention dropdown ekle
 
 **Discord mention:** Her kanal için her event'e bağımsız mention tipi (`none` / `everyone` / `here`) atanabilir. `send_to_channels` bu değeri DB'den okur — hardcoded set yoktur.
 

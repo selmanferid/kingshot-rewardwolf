@@ -772,7 +772,12 @@ def sync_active_codes(api_codes_data):
     conn.close()
 
 def is_code_completed(code):
-    """A code is 'done' only if it's currently active AND fully completed."""
+    """
+    A code needs no further distribution if:
+    - is_currently_active=0 (deactivated: expired, INVALID_CODE, LIMIT_REACHED exhausted), OR
+    - is_completed=1 (all players processed)
+    Reactivated codes (is_currently_active=1, is_completed=0) are treated as pending.
+    """
     conn = db_connect()
     c = conn.cursor()
     c.execute("SELECT is_completed, is_currently_active FROM active_codes WHERE code=?", (code,))
@@ -780,19 +785,25 @@ def is_code_completed(code):
     conn.close()
     if not row:
         return False
-    # If reactivated (is_currently_active=1 but is_completed was reset), treat as not done
-    return row["is_completed"] == 1 and row["is_currently_active"] == 1
+    if row["is_currently_active"] == 0:
+        return True   # deactivated — no distribution needed
+    return row["is_completed"] == 1
 
-def mark_code_completed(code, results):
-    success      = sum(1 for r in results if r["status"] == "SUCCESS")
-    already_used = sum(1 for r in results if r["status"] == "ALREADY_USED")
-    failed       = sum(1 for r in results if r["status"] in ("FAILED", "INVALID_CODE", "UNKNOWN", "SERVER_BUSY", "LIMIT_REACHED"))
+def mark_code_completed(code, results=None):
+    """Mark code as fully distributed. Reads cumulative stats from redemptions table."""
     conn = db_connect()
-    c = conn.cursor()
-    c.execute("""
+    row = conn.execute("""
+        SELECT
+            COUNT(*) AS total,
+            COALESCE(SUM(CASE WHEN status='SUCCESS'      THEN 1 ELSE 0 END), 0) AS success,
+            COALESCE(SUM(CASE WHEN status='ALREADY_USED' THEN 1 ELSE 0 END), 0) AS already_used,
+            COALESCE(SUM(CASE WHEN status NOT IN ('SUCCESS','ALREADY_USED') THEN 1 ELSE 0 END), 0) AS failed
+        FROM redemptions WHERE code=?
+    """, (code,)).fetchone()
+    conn.execute("""
         UPDATE active_codes SET is_completed=1, total=?, success=?, already_used=?, failed=?, last_updated=?
         WHERE code=?
-    """, (len(results), success, already_used, failed,
+    """, (row["total"], row["success"], row["already_used"], row["failed"],
           datetime.now(timezone.utc).isoformat(), code))
     conn.commit()
     conn.close()
@@ -1723,14 +1734,30 @@ def redeem_code_for_all(gift_code):
     failed       = sum(1 for r in results if r["status"] in ("FAILED", "INVALID_CODE", "UNKNOWN", "LIMIT_REACHED"))
 
     log.info(f"\n📊 Summary — {gift_code}: ✅{success} ⚠️{already_used} ❌{failed} (stop_reason={stop_reason})")
-    if stop_reason == "complete":
+    # Only fire dist_complete when at least one player was actually processed this run.
+    # (processed==0 means all players were already done — re-queued unnecessarily.)
+    if stop_reason == "complete" and processed > 0:
+        # Read cumulative stats from DB so the notification reflects the full picture.
+        try:
+            _sc = db_connect()
+            _sr = _sc.execute("""
+                SELECT
+                    COALESCE(SUM(CASE WHEN status='SUCCESS'      THEN 1 ELSE 0 END), 0) AS s,
+                    COALESCE(SUM(CASE WHEN status='ALREADY_USED' THEN 1 ELSE 0 END), 0) AS au,
+                    COUNT(*) AS total
+                FROM redemptions WHERE code=?
+            """, (gift_code,)).fetchone()
+            _sc.close()
+            _s, _au, _tot = _sr["s"], _sr["au"], _sr["total"]
+        except Exception:
+            _s, _au, _tot = success, already_used, processed
         send_to_channels("dist_complete",
             code=gift_code,
-            delivered=success + already_used,
-            success=success,
-            already_used=already_used,
-            failed=failed,
-            total=processed,
+            delivered=_s + _au,
+            success=_s,
+            already_used=_au,
+            failed=_tot - _s - _au,
+            total=_tot,
         )
 
     _dist_state["active"] = False
@@ -2541,9 +2568,14 @@ def main():
             log.info(f"📦 Distributing queued code: {code}")
             results = redeem_code_for_all(code)
             status_map = get_code_status_map(code)
-            pending = [p for p in get_active_players() if status_map.get(p["playerId"]) not in ("SUCCESS", "ALREADY_USED")]
+            # "Pending" = players the distribution loop would actually pick up next time:
+            # NULL (never tried), SERVER_BUSY (transient), RETRY_PENDING (injected by /retry).
+            # FAILED / LIMIT_REACHED / INVALID_CODE players are handled by retry_failed_players,
+            # not by the main distribution loop — they must not block completion.
+            actionable = {None, "SERVER_BUSY", "RETRY_PENDING"}
+            pending = [p for p in get_active_players() if status_map.get(p["playerId"]) in actionable]
             if not pending:
-                mark_code_completed(code, results)
+                mark_code_completed(code)
                 log.info(f"✅ Code {code} fully completed.")
             else:
                 update_code_progress(code, results)

@@ -24,9 +24,10 @@ Sistemin kalbidir. Python ile yazılmıştır ve çoklu thread (iş parçacığ�
 Bağımsız bir container olarak çalışan dashboard sistemidir.
 
 - **FastAPI:** Hızlı ve asenkron çalışan Python backend'idir.
-- **SQLite Mapping:** Daemon tarafından kullanılan SQLite veritabanı dosyasını paylaşımlı olarak (`/app/data`) okur ve web arayüzüne JSON formatında sunar.
-- **Auth (JWT):** Yalnızca yetkili `ADMIN_USER` ve `ADMIN_PASS` ile giriş izni verir.
+- **SQLite Mapping:** Daemon tarafından kullanılan SQLite veritabanı dosyasını paylaşımlı olarak (`/app/data`) okur ve web arayüzüne JSON formatında sunar. `db()` fonksiyonu `PRAGMA journal_mode=WAL` ve `PRAGMA synchronous=NORMAL` ile açılır — daemon ile aynı WAL modunda çalışır.
+- **Auth (JWT):** Yalnızca yetkili `ADMIN_USER` ve `ADMIN_PASS` ile giriş izni verir. Public API endpoint'leri (`/api/public/*`) `X-API-Key` header'ı ile ayrıca korunur.
 - **Oyuncu Yönetimi:** Tüm oyuncu ekleme/çıkarma/VIP işlemleri Dashboard üzerinden yapılır.
+- **Settings güvenliği:** `/api/settings` yalnızca sayısal config değerlerini döndürür; `TELEGRAM_TOKEN` ve `TELEGRAM_CHAT_ID` gibi hassas değerler bu endpoint üzerinden açığa çıkarılmaz.
 
 ### C. Host & Rebuild Server (`rebuild_server.py`)
 
@@ -40,7 +41,7 @@ Yoğun okuma/yazma işlemi için SQLite WAL (Write-Ahead Logging) modunda çalı
 - `redemptions`: Hangi koda, hangi oyuncuya ne zaman gönderim yapıldığının ve sonucun (SUCCESS, ALREADY_USED, FAILED vb.) kaydı.
 - `active_codes`: Sisteme düşmüş kodlar, bitiş süreleri, gönderim istatistikleri ve `notified` bayrağı.
 - `expiry_warnings`: Bitmek üzere olan kodlar için atılmış uyarı mesajlarının kaydı.
-- `notification_channels`: Telegram grupları ve Discord webhook'larının tanımları, event toggle'ları, özel şablonları ve Discord mention ayarları (`mention_*` kolonları: `none` / `everyone` / `here`).
+- `notification_channels`: Telegram grupları ve Discord webhook'larının tanımları, event toggle'ları (`ev_new_code`, `ev_dist_complete`, `ev_dist_state`, `ev_dist_progress`, `ev_expiry_warning`, `ev_daily_summary`), özel şablonları ve Discord mention ayarları (`mention_*` kolonları: `none` / `everyone` / `here`).
 - `api_keys`: Dışa açık API endpoint'leri için erişim anahtarları.
 - `player_name_history`: Oyuncu kullanıcı adı değişikliklerinin geçmişi.
 - `daemon_control`: Web arayüzü ↔ daemon arası IPC tablosu. `dist_cmd` (pause/resume/cancel) ve `dist_paused` (0/1) key'leri ile dağıtım kontrolü sağlar.
@@ -65,7 +66,7 @@ Her oyuncu-kod çifti için aşağıdaki durumlardan biri kaydedilir:
 
 **LIMIT_REACHED retry bağımsız çalışır:** Normal dağıtım (24 saat sürebilir) beklenilmez. `code_check_loop` 2 saat dolduğunda kendi `sync_playwright()` bağlamıyla ayrı bir thread açar. Aynı anda yalnızca bir LIMIT_REACHED retry thread'i çalışabilir (`_limit_retry_active` flag).
 
-## 6. Dağıtım Kontrol Mekanizması
+## 4. Dağıtım Kontrol Mekanizması
 
 Dağıtım (distribution) aktifken Telegram komutları veya web arayüzü üzerinden kontrol edilebilir:
 
@@ -78,7 +79,7 @@ Komutların etkisi **anlık değildir** — mevcut oyuncu için olan sleep (~10d
 
 `/retry` komutu aktif dağıtım sırasında kullanılırsa, retry oyuncuları `RETRY_PENDING` statüsüyle DB'ye yazılır ve mevcut while döngüsü tarafından sırayla işlenir (ayrı bir tur beklenmez).
 
-## 4. Akış Diyagramı
+## 5. Akış Diyagramı
 
 1. **Kod Kontrolü:** `Daemon` → `KingShot API` → Yeni kod bulunursa `active_codes` tablosuna eklenir. `notified=0` ise Telegram + notification channels'a bildirim gönderilir ve `notified=1` set edilir (spam önleme).
 2. **Redeem Süreci:** `Daemon` → `Playwright (host Chromium)` → `https://ks-giftcode.centurygame.com/` → Yanıt parse edilir → Veritabanına kaydedilir.
@@ -92,7 +93,16 @@ Komutların etkisi **anlık değildir** — mevcut oyuncu için olan sleep (~10d
    - `daily_summary` — Gece 00:00 günlük özet
 5. **İzleme:** `Web Dashboard` veya `Telegram Bot` → O anki ilerleme ve istatistikler veritabanından okunur.
 
-## 5. Özel Optimizasyonlar
+## 6. Frontend (SPA)
+
+`web/index.html` tek sayfalık bir Vue-style vanilla JS uygulamasıdır.
+
+- **`apiFetch(path, opts)`** — Tüm API çağrılarının merkezi noktası. 401 alınırsa otomatik logout, diğer HTTP hataları için `err.detail || HTTP {status}` formatında hata fırlatır.
+- **Polling:** `enterApp()` içinde 8 saniyede bir aktif sayfayı yenileyen bir `setInterval` kurulur. Logout'ta `clearInterval(pollTimer)` ile temizlenir.
+- **Health metrikleri:** Daemon kontrol sayfası sağlık barlarını hafif `/api/health` endpoint'inden okur; `/api/dashboard`'dan değil.
+- **`EVENT_LABELS`:** Kanal kartlarındaki event chip'lerinin kaynağı. Yeni bir event eklendiğinde bu nesneye de eklenmesi gerekir.
+
+## 7. Özel Optimizasyonlar
 
 - **Browser Fingerprint Rastgeleleştirme:** Her oyuncu için farklı viewport, user-agent ve dil başlığı seçilir. `navigator.webdriver` gizlenir.
 - **Host Chromium Mapping:** Playwright'ın kendi tarayıcısını indirmek yerine host (Raspberry Pi) üzerindeki Chromium binary'si Docker volume ile read-only olarak map edilir. Bu sayede Docker imaj boyutu küçük tutulur ve ARM64 uyumluluğu sağlanır.

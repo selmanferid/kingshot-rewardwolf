@@ -206,3 +206,12 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 data/
+
+# Claude Code local tooling (worktrees, local settings — may contain live tokens in permission history)
+.claude/
+
+# Local-only scratch / backups
+backup/
+stitch.zip
+stitch_output/
+memory/

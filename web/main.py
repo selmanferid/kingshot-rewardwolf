@@ -124,6 +124,8 @@ def verify_api_key_header(api_key: str = Depends(api_key_header)):
 def db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
     return conn
 
 # ── Dashboard ─────────────────────────────────────────────
@@ -782,8 +784,6 @@ def load_config():
         "CPU_ALERT_THRESHOLD":  80,
         "RAM_ALERT_THRESHOLD":  85,
         "TEMP_ALERT_THRESHOLD": 75,
-        "TELEGRAM_TOKEN":       os.getenv("TELEGRAM_TOKEN",  ""),
-        "TELEGRAM_CHAT_ID":     os.getenv("TELEGRAM_CHAT_ID", ""),
     }
 
 def save_config(cfg):
@@ -927,6 +927,8 @@ DEFAULT_CHANNEL_TEMPLATES = {
     "dist_complete":  "✅ Distribution Complete!\n🎁 Code: {code_fmt}\n\n✅ Delivered: {delivered}\n❌ Failed: {failed}\n👥 Total: {total}",
     "expiry_warning": "⏰ Gift Code Expiring!\n🎁 Code: {code_fmt}\n⏱ {hours}h remaining\n📊 {delivered}/{total} delivered",
     "daily_summary":  "📅 Daily Summary\n👥 Players: {players}\n✅ Delivered: {delivered}\n❌ Failed: {failed}",
+    "dist_state":     "⚙️ Distribution {action}\n🎁 Code: {code_fmt}",
+    "dist_progress":  "📤 {username} → {status}\n🎁 Code: {code_fmt}",
 }
 
 class ChannelCreate(BaseModel):
@@ -1035,7 +1037,7 @@ def list_channels(_=Depends(verify_token)):
     for r in rows:
         d = dict(r)
         # Null template'leri default ile doldur (UI'da göstermek için)
-        for ev in ("new_code", "dist_complete", "expiry_warning", "daily_summary"):
+        for ev in ("new_code", "dist_complete", "expiry_warning", "daily_summary", "dist_state", "dist_progress"):
             if not d.get(f"tpl_{ev}"):
                 d[f"tpl_{ev}_default"] = DEFAULT_CHANNEL_TEMPLATES.get(ev, "")
         result.append(d)
@@ -1068,12 +1070,19 @@ def create_channel(body: ChannelCreate, _=Depends(verify_token)):
 @app.patch("/api/channels/{channel_id}")
 def update_channel(channel_id: int, body: ChannelUpdate, _=Depends(verify_token)):
     conn = db()
-    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    # Check existence before updating
+    existing = conn.execute("SELECT id FROM notification_channels WHERE id=?", (channel_id,)).fetchone()
+    if not existing:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Channel not found")
+    # exclude_unset so callers can explicitly set fields to False or empty string
+    updates = {k: v for k, v in body.model_dump(exclude_unset=True).items()}
     if not updates:
+        conn.close()
         raise HTTPException(status_code=400, detail="No fields to update")
     # bool → int dönüşümü
     for bfield in ("enabled","ev_new_code","ev_dist_complete","ev_expiry_warning","ev_daily_summary","ev_dist_state","ev_dist_progress"):
-        if bfield in updates:
+        if bfield in updates and updates[bfield] is not None:
             updates[bfield] = int(updates[bfield])
     set_clause = ", ".join(f"{k}=?" for k in updates)
     conn.execute(f"UPDATE notification_channels SET {set_clause} WHERE id=?",
@@ -1081,8 +1090,6 @@ def update_channel(channel_id: int, body: ChannelUpdate, _=Depends(verify_token)
     conn.commit()
     row = conn.execute("SELECT * FROM notification_channels WHERE id=?", (channel_id,)).fetchone()
     conn.close()
-    if not row:
-        raise HTTPException(status_code=404, detail="Channel not found")
     return dict(row)
 
 @app.delete("/api/channels/{channel_id}")
@@ -1227,10 +1234,10 @@ def public_player_status(player_id: str, _=Depends(verify_api_key_header)):
         conn.close()
         raise HTTPException(status_code=404, detail="Player not found")
     redemptions = conn.execute("""
-        SELECT r.code, r.status, r.message, r.timestamp
+        SELECT r.code, r.status, r.message, r.created_at
         FROM redemptions r
         WHERE r.player_id = ?
-        ORDER BY r.timestamp DESC
+        ORDER BY r.created_at DESC
     """, (player_id,)).fetchall()
     conn.close()
     return {

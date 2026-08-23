@@ -7,124 +7,249 @@
 <link rel="icon" type="image/x-icon" href="/favicon.ico"/>
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"/>
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"/>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
 <script>
 tailwind.config = {
   darkMode: 'class',
   theme: { extend: { colors: {
-    'pc':  '#f0a500', 'pc-on': '#442c00', 'pc-text': '#5f3f00',
-    'p':   '#ffc56c', 'p-fixed': '#ffddaf', 'p-dim': '#ffba44',
-    'sc':  '#0064e0', 'sc-on': '#e7ebff', 's': '#afc6ff',
-    'tc':  '#68c86f', 'tc-on': '#005218', 't': '#84e588', 't-dim': '#7bdb80',
-    'ec':  '#93000a', 'ec-on': '#ffdad6', 'e': '#ffb4ab',
-    'sl0': '#0c0e13', 'sl1': '#191b21', 'sl':  '#1e1f25',
-    'slh': '#282a30', 'slx': '#33353a', 'sbr': '#37393f',
-    'os':  '#e2e2e9', 'osv': '#d6c4ac', 'out': '#9f8e79', 'outv': '#514533',
+    // Yeni WolfPack paleti
+    'bg':    'hsl(0 0% 5%)',
+    'fg':    'hsl(0 0% 93%)',
+    'card':  'hsl(0 0% 8%)',
+    'sec':   'hsl(0 0% 12%)',
+    'muted': 'hsl(0 0% 14%)',
+    'muted-fg': 'hsl(0 0% 55%)',
+    'bdr':   'hsl(0 0% 16%)',
+    'inp':   'hsl(0 0% 16%)',
+    'pri':   'hsl(0 85% 50%)',
+    'pri-fg':'hsl(0 0% 100%)',
+    'acc':   'hsl(0 70% 45%)',
+    'des':   'hsl(0 84% 60%)',
+    'ring':  'hsl(0 85% 50%)',
+    'ember': 'hsl(15 90% 55%)',
+    'ember-glow': 'hsl(0 100% 40%)',
+    'wolf-dark':  'hsl(0 0% 3%)',
+    'wolf-gray':  'hsl(0 0% 70%)',
+    'sb-bg': 'hsl(0 0% 6%)',
+    'sb-fg': 'hsl(0 0% 85%)',
+    // Semantik renkler (mevcut koddan gelen)
+    'tc':  'hsl(142 72% 45%)',  // success green
+    'ec':  'hsl(0 84% 60%)',    // error/destructive
+    'e':   'hsl(0 84% 60%)',
+    't':   'hsl(142 72% 45%)',
+    's':   'hsl(220 75% 60%)',  // info blue (complete badge)
+    'os':  'hsl(0 0% 93%)',
+    'out': 'hsl(0 0% 55%)',
+    // Eskiden kalan surface renkleri (layout değişmez diye)
+    'sl0': 'hsl(0 0% 5%)',
+    'sl1': 'hsl(0 0% 8%)',
+    'sl':  'hsl(0 0% 9%)',
+    'slh': 'hsl(0 0% 11%)',
+    'slx': 'hsl(0 0% 14%)',
+    'sbr': 'hsl(0 0% 16%)',
   }, fontFamily: {
-    'head': ['Space Grotesk','sans-serif'],
-    'body': ['Inter','sans-serif'],
+    'head': ['Rajdhani','sans-serif'],
+    'body': ['Exo 2','sans-serif'],
     'mono': ['JetBrains Mono','monospace'],
   }}}
 };
 </script>
 <style>
-.material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;}
-.sp{box-shadow:inset 0 1px 0 0 rgba(255,255,255,.06);}
-::-webkit-scrollbar{width:4px;height:4px;}
-::-webkit-scrollbar-track{background:#0c0e13;}
-::-webkit-scrollbar-thumb{background:#282a30;border-radius:2px;}
+/* ── WolfPack Design System Variables ─────────────────────── */
+:root {
+  --font-heading: "Rajdhani", sans-serif;
+  --font-body: "Exo 2", sans-serif;
+  --background: 0 0% 5%;
+  --foreground: 0 0% 93%;
+  --card: 0 0% 8%;
+  --card-foreground: 0 0% 93%;
+  --popover: 0 0% 10%;
+  --secondary: 0 0% 12%;
+  --muted: 0 0% 14%;
+  --muted-foreground: 0 0% 55%;
+  --border: 0 0% 16%;
+  --input: 0 0% 16%;
+  --primary: 0 85% 50%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 0 70% 45%;
+  --destructive: 0 84% 60%;
+  --ring: 0 85% 50%;
+  --radius: 0.5rem;
+  --ember: 15 90% 55%;
+  --ember-glow: 0 100% 40%;
+  --wolf-dark: 0 0% 3%;
+  --gradient-fire: linear-gradient(135deg, hsl(0 85% 50%), hsl(15 90% 55%), hsl(0 100% 40%));
+  --gradient-dark: linear-gradient(180deg, hsl(0 0% 8%), hsl(0 0% 3%));
+  --gradient-card: linear-gradient(145deg, hsl(0 0% 10%), hsl(0 0% 6%));
+  --shadow-fire: 0 0 30px -5px hsl(0 85% 50% / .4);
+  --shadow-ember: 0 0 60px -10px hsl(0 85% 50% / .2);
+  --glow-red: 0 0 20px hsl(0 85% 50% / .3);
+  --sidebar-background: 0 0% 6%;
+  --sidebar-foreground: 0 0% 85%;
+  --sidebar-primary: 0 85% 50%;
+  --sidebar-accent: 0 0% 12%;
+  --sidebar-border: 0 0% 14%;
+}
 
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-body);
+}
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+}
+
+/* ── Material Icons ──────────────────────────────────────── */
+.material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;}
+
+/* ── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:hsl(var(--background));}
+::-webkit-scrollbar-thumb{background:hsl(var(--muted));border-radius:2px;}
+
+/* ── Page visibility ─────────────────────────────────────── */
 .page{display:none;}.page.active{display:block;}
 
-.ni{display:flex;align-items:center;gap:10px;padding:8px 16px;cursor:pointer;color:#9f8e79;
-  font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:500;letter-spacing:.04em;
-  text-transform:uppercase;border-left:2px solid transparent;transition:all .15s;white-space:nowrap;overflow:hidden;}
-.ni:hover{color:#e2e2e9;background:rgba(255,255,255,.03);}
-.ni.active{color:#f0a500;border-left-color:#f0a500;background:rgba(240,165,0,.06);}
+/* ── Brand logo text ─────────────────────────────────────── */
+.brand {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 14px;
+  background: var(--gradient-fire);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.brand-sub {
+  font-family: var(--font-body);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+}
+
+/* ── Sidebar nav item ────────────────────────────────────── */
+.ni{display:flex;align-items:center;gap:10px;padding:8px 16px;cursor:pointer;
+  color:hsl(var(--muted-foreground));
+  font-family:var(--font-body);font-size:12px;font-weight:500;letter-spacing:.04em;
+  text-transform:uppercase;border-left:2px solid transparent;transition:all .15s;
+  white-space:nowrap;overflow:hidden;}
+.ni:hover{color:hsl(var(--foreground));background:hsl(var(--sidebar-accent));}
+.ni.active{
+  color:hsl(var(--primary));
+  border-left-color:hsl(var(--primary));
+  background:hsl(var(--primary) / 0.10);
+}
 .ni .ni-label{transition:opacity .2s, width .2s;}
 
-/* Sidebar collapse */
+/* ── Sidebar collapse ────────────────────────────────────── */
 #sidebar{width:224px;transition:width .25s cubic-bezier(.4,0,.2,1);}
 #sidebar.collapsed{width:56px;}
 #sidebar.collapsed .ni-label{opacity:0;width:0;overflow:hidden;}
 #sidebar.collapsed .ni-section{opacity:0;height:0;padding:0;overflow:hidden;}
 #sidebar.collapsed .ni{padding:10px;justify-content:center;border-left-color:transparent !important;}
-#sidebar.collapsed .ni.active{background:rgba(240,165,0,.1);}
-#sidebar.collapsed .ni.active span.material-symbols-outlined{color:#f0a500;}
+#sidebar.collapsed .ni.active{background:hsl(var(--primary) / 0.1);}
+#sidebar.collapsed .ni.active span.material-symbols-outlined{color:hsl(var(--primary));}
 #sidebar.collapsed .sb-logo-text{opacity:0;width:0;overflow:hidden;}
 #sidebar.collapsed .sb-footer-text{display:none;}
 #sidebar.collapsed .sb-toggle-icon{transform:rotate(180deg);}
 #main{margin-left:224px;transition:margin-left .25s cubic-bezier(.4,0,.2,1);}
 #main.collapsed{margin-left:56px;}
 
+/* ── Modal ───────────────────────────────────────────────── */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);
   backdrop-filter:blur(4px);z-index:999;align-items:center;justify-content:center;}
 .modal-overlay.open{display:flex;}
 
+/* ── Toast ───────────────────────────────────────────────── */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(12px);
-  background:#282a30;color:#e2e2e9;padding:10px 20px;font-family:'Space Grotesk',sans-serif;
-  font-size:13px;font-weight:500;border-left:3px solid #84e588;opacity:0;
+  background:hsl(var(--secondary));color:hsl(var(--foreground));
+  padding:10px 20px;font-family:var(--font-body);
+  font-size:13px;font-weight:500;border-left:3px solid hsl(142 72% 45%);opacity:0;
   transition:all .25s ease;pointer-events:none;z-index:9999;border-radius:6px;white-space:nowrap;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-.toast.err{border-left-color:#ffb4ab;}
+.toast.err{border-left-color:hsl(var(--destructive));}
 
-.pbar{height:3px;background:#282a30;border-radius:2px;overflow:hidden;}
+/* ── Progress bars ───────────────────────────────────────── */
+.pbar{height:3px;background:hsl(var(--secondary));border-radius:2px;overflow:hidden;}
 .pfill{height:100%;transition:width .6s ease;border-radius:2px;}
-.pf-green{background:#84e588;}.pf-yellow{background:#f0a500;}.pf-red{background:#ffb4ab;}
+.pf-green{background:hsl(142 72% 45%);}
+.pf-yellow{background:hsl(var(--ember));}
+.pf-red{background:hsl(var(--destructive));}
 
-.cpbar{height:3px;background:#282a30;border-radius:2px;overflow:hidden;margin-top:4px;}
-.cpfill{height:100%;background:linear-gradient(90deg,#84e588,#f0a500);transition:width .6s ease;}
+.cpbar{height:4px;background:hsl(var(--secondary));border-radius:2px;overflow:hidden;margin-top:4px;}
+.cpfill{height:100%;background:var(--gradient-fire);transition:width .6s ease;}
 
+/* ── Log viewer ──────────────────────────────────────────── */
 .log-line{line-height:1.7;white-space:pre-wrap;word-break:break-all;padding:1px 0;}
-.log-INFO{color:#7c8fa5;}.log-WARNING{color:#f0a500;}.log-ERROR{color:#ffb4ab;}.log-SUCCESS{color:#84e588;}
+.log-INFO{color:hsl(220 15% 55%);}
+.log-WARNING{color:hsl(var(--ember));}
+.log-ERROR{color:hsl(var(--destructive));}
+.log-SUCCESS{color:hsl(142 72% 45%);}
 
+/* ── Terminal lines ──────────────────────────────────────── */
 .tl{line-height:1.7;white-space:pre-wrap;padding:1px 0;font-family:'JetBrains Mono',monospace;font-size:12px;}
-.tl.cmd{color:#f0a500;}.tl.ok{color:#84e588;}.tl.err{color:#ffb4ab;}.tl.info{color:#7c8fa5;}
+.tl.cmd{color:hsl(var(--ember));}
+.tl.ok{color:hsl(142 72% 45%);}
+.tl.err{color:hsl(var(--destructive));}
+.tl.info{color:hsl(220 15% 55%);}
 
+/* ── Daemon status dot ───────────────────────────────────── */
 .sdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-.sdot.running{background:#84e588;box-shadow:0 0 8px rgba(132,229,136,.6);animation:pdot 2s infinite;}
-.sdot.stopped{background:#ffb4ab;}
+.sdot.running{background:hsl(142 72% 45%);box-shadow:0 0 8px hsl(142 72% 45% / .6);animation:pdot 2s infinite;}
+.sdot.stopped{background:hsl(var(--destructive));}
 @keyframes pdot{0%,100%{opacity:1}50%{opacity:.35}}
 @keyframes glow{0%,100%{opacity:1}50%{opacity:.5}}
 .glowing{animation:glow 2s infinite;}
 
+/* ── Badges ──────────────────────────────────────────────── */
 .bdg{display:inline-block;padding:2px 8px;font-size:10px;letter-spacing:.08em;font-weight:700;
-  text-transform:uppercase;font-family:'JetBrains Mono',monospace;border-radius:2px;}
-.bdg-active{background:rgba(132,229,136,.15);color:#84e588;border:1px solid rgba(132,229,136,.25);}
-.bdg-complete{background:rgba(175,198,255,.15);color:#afc6ff;border:1px solid rgba(175,198,255,.25);}
-.bdg-inactive{background:rgba(255,255,255,.06);color:#9f8e79;border:1px solid rgba(255,255,255,.1);}
-.bdg-green{background:rgba(132,229,136,.15);color:#84e588;border:1px solid rgba(132,229,136,.25);}
-.bdg-yellow{background:rgba(240,165,0,.15);color:#f0a500;border:1px solid rgba(240,165,0,.25);}
-.bdg-red{background:rgba(255,180,171,.15);color:#ffb4ab;border:1px solid rgba(255,180,171,.25);}
-.bdg-blue{background:rgba(175,198,255,.15);color:#afc6ff;border:1px solid rgba(175,198,255,.25);}
-.bdg-gray{background:rgba(255,255,255,.06);color:#9f8e79;border:1px solid rgba(255,255,255,.1);}
-.bdg-vip{background:rgba(240,165,0,.15);color:#f0a500;border:1px solid rgba(240,165,0,.25);}
-.bdg-r5{background:rgba(163,100,250,.15);color:#c084fc;border:1px solid rgba(163,100,250,.25);}
-.bdg-r4{background:rgba(59,130,246,.15);color:#60a5fa;border:1px solid rgba(59,130,246,.25);}
-.bdg-r3{background:rgba(132,229,136,.15);color:#84e588;border:1px solid rgba(132,229,136,.25);}
-.bdg-r2{background:rgba(240,165,0,.15);color:#f0a500;border:1px solid rgba(240,165,0,.25);}
-.bdg-r1{background:rgba(255,255,255,.06);color:#9f8e79;border:1px solid rgba(255,255,255,.1);}
-.vips{color:#f0a500;}
+  text-transform:uppercase;font-family:'JetBrains Mono',monospace;border-radius:9999px;}
+.bdg-active{background:hsl(142 72% 45% / .15);color:hsl(142 72% 45%);border:1px solid hsl(142 72% 45% / .25);}
+.bdg-complete{background:hsl(220 75% 60% / .15);color:hsl(220 75% 60%);border:1px solid hsl(220 75% 60% / .25);}
+.bdg-inactive{background:hsl(var(--muted));color:hsl(var(--muted-foreground));border:1px solid hsl(var(--border));}
+.bdg-green{background:hsl(142 72% 45% / .15);color:hsl(142 72% 45%);border:1px solid hsl(142 72% 45% / .25);}
+.bdg-yellow{background:hsl(var(--ember) / .15);color:hsl(var(--ember));border:1px solid hsl(var(--ember) / .25);}
+.bdg-red{background:hsl(var(--destructive) / .15);color:hsl(var(--destructive));border:1px solid hsl(var(--destructive) / .25);}
+.bdg-blue{background:hsl(220 75% 60% / .15);color:hsl(220 75% 60%);border:1px solid hsl(220 75% 60% / .25);}
+.bdg-gray{background:hsl(var(--muted));color:hsl(var(--muted-foreground));border:1px solid hsl(var(--border));}
+/* VIP badge — ember/turuncu (premium hissi) */
+.bdg-vip{background:hsl(var(--ember) / .15);color:hsl(var(--ember));border:1px solid hsl(var(--ember) / .3);}
+/* Role badges — kırmızı tonlu (§5.5 Rank badge) */
+.bdg-r5{background:hsl(var(--primary) / .15);color:hsl(var(--primary));border:1px solid hsl(var(--primary) / .3);}
+.bdg-r4{background:hsl(var(--primary) / .12);color:hsl(10 80% 65%);border:1px solid hsl(var(--primary) / .25);}
+.bdg-r3{background:hsl(var(--ember) / .12);color:hsl(var(--ember));border:1px solid hsl(var(--ember) / .25);}
+.bdg-r2{background:hsl(var(--muted));color:hsl(var(--muted-foreground));border:1px solid hsl(var(--border));}
+.bdg-r1{background:hsl(var(--muted));color:hsl(var(--muted-foreground));border:1px solid hsl(var(--border));}
+/* VIP star */
+.vips{color:hsl(var(--ember));}
 
-/* JS-generated elements */
-.scard{background:#282a30;border-radius:8px;padding:18px;box-shadow:inset 0 1px 0 0 rgba(255,255,255,.06);}
-.slbl{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.16em;color:#9f8e79;text-transform:uppercase;margin-bottom:8px;}
-.sinp{width:100%;background:#0c0e13 !important;border:1px solid rgba(255,255,255,.1) !important;border-radius:6px;
-  color:#e2e2e9 !important;padding:9px 12px;font-family:'JetBrains Mono',monospace;font-size:13px;
+/* ── Settings cards ──────────────────────────────────────── */
+.scard{background:hsl(var(--secondary));border-radius:8px;padding:18px;border:1px solid hsl(var(--border));}
+.slbl{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.16em;
+  color:hsl(var(--muted-foreground));text-transform:uppercase;margin-bottom:8px;}
+.sinp{width:100%;background:hsl(var(--input)) !important;border:1px solid hsl(var(--border)) !important;
+  border-radius:6px;color:hsl(var(--foreground)) !important;padding:9px 12px;
+  font-family:'JetBrains Mono',monospace;font-size:13px;
   outline:none;transition:border-color .2s;-webkit-appearance:none;appearance:none;box-shadow:none !important;}
-.sinp:focus{border-color:rgba(240,165,0,.5) !important;box-shadow:none !important;}
-.sdesc{font-size:11px;color:#9f8e79;margin-top:6px;font-family:'Inter',sans-serif;}
+.sinp:focus{border-color:hsl(var(--primary) / .5) !important;box-shadow:0 0 0 2px hsl(var(--ring) / .2) !important;}
+.sdesc{font-size:11px;color:hsl(var(--muted-foreground));margin-top:6px;font-family:var(--font-body);}
 textarea.sinp{resize:vertical;}
 
-/* Global input dark override (Tailwind forms plugin reset) */
+/* ── Global input dark override ──────────────────────────── */
 input[type=number],input[type=text],input[type=password],input[type=email],select,textarea{
   color-scheme:dark;}
 input:not([class]),select:not([class]),textarea:not([class]){
-  background:#0c0e13 !important;color:#e2e2e9 !important;border-color:rgba(255,255,255,.1) !important;}
+  background:hsl(var(--input)) !important;color:hsl(var(--foreground)) !important;
+  border-color:hsl(var(--border)) !important;}
 
-/* Mobile overlay sidebar */
+/* ── Mobile sidebar ──────────────────────────────────────── */
 #sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:40;backdrop-filter:blur(2px);}
 #sidebar-overlay.open{display:block;}
 @media(max-width:767px){
@@ -137,52 +262,63 @@ input:not([class]),select:not([class]),textarea:not([class]){
   .mobile-menu-btn{display:flex !important;}
 }
 
-.trow td{padding:10px 24px;border-bottom:1px solid rgba(255,255,255,.04);font-size:13px;vertical-align:middle;}
+/* ── Table rows ──────────────────────────────────────────── */
+.trow td{padding:10px 24px;border-bottom:1px solid hsl(var(--border));font-size:13px;vertical-align:middle;}
 .trow:last-child td{border-bottom:none;}
-.trow:hover td{background:rgba(255,255,255,.02);}
+.trow:hover td{background:hsl(var(--secondary) / .5);}
 
-.abtn{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;font-family:'Space Grotesk',sans-serif;
-  font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:6px;
+/* ── Action buttons ──────────────────────────────────────── */
+.abtn{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;
+  font-family:var(--font-body);font-size:11px;font-weight:600;
+  letter-spacing:.06em;text-transform:uppercase;border-radius:6px;
   cursor:pointer;border:none;transition:all .15s;}
-.abtn-pri{background:#f0a500;color:#442c00;}.abtn-pri:hover{filter:brightness(1.1);}
-.abtn-ghost{background:transparent;border:1px solid rgba(255,255,255,.12);color:#9f8e79;}
-.abtn-ghost:hover{border-color:#f0a500;color:#f0a500;}
-.abtn-danger{background:#93000a;color:#ffdad6;}.abtn-danger:hover{filter:brightness(1.15);}
-.abtn-warn{background:#282a30;color:#f0a500;border:1px solid rgba(240,165,0,.25);}
-.abtn-warn:hover{background:#33353a;}
-.abtn-sm{padding:4px 10px;font-size:11px;}
+/* Primary — kırmızı */
+.abtn-pri{background:hsl(var(--primary));color:hsl(var(--primary-foreground));}
+.abtn-pri:hover{background:hsl(var(--accent));}
+/* Ghost */
+.abtn-ghost{background:transparent;border:1px solid hsl(var(--border));color:hsl(var(--muted-foreground));}
+.abtn-ghost:hover{border-color:hsl(var(--primary));color:hsl(var(--primary));}
+/* Danger */
+.abtn-danger{background:hsl(var(--destructive));color:#fff;}
+.abtn-danger:hover{filter:brightness(1.1);}
+/* Ember / warn — premium (VIP) */
+.abtn-warn{background:hsl(var(--ember));color:#fff;}
+.abtn-warn:hover{filter:brightness(1.1);}
+/* Small */
+.abtn-sm{padding:4px 10px;font-size:10px;}
 
-.akcard{background:#191b21;border-radius:8px;padding:16px 20px;margin-bottom:10px;
+/* ── API key card ─────────────────────────────────────────── */
+.akcard{background:hsl(var(--secondary));border-radius:8px;padding:16px 20px;margin-bottom:10px;
   display:flex;align-items:center;justify-content:space-between;gap:12px;
-  box-shadow:inset 0 1px 0 0 rgba(255,255,255,.06);}
+  border:1px solid hsl(var(--border));}
 </style>
 </head>
 <body class="bg-sl0 text-os font-body antialiased">
 
 <!-- LOGIN -->
-<div id="login-screen" class="fixed inset-0 flex items-center justify-center" style="background:radial-gradient(ellipse at 50% 0%,rgba(240,165,0,.08) 0%,#0c0e13 65%);">
-  <div class="w-[420px] bg-sl1 rounded-xl overflow-hidden sp">
-    <div class="h-0.5 bg-pc w-full"></div>
+<div id="login-screen" class="fixed inset-0 flex items-center justify-center" style="background:radial-gradient(ellipse at 50% 0%, hsl(0 85% 50% / .12) 0%, hsl(0 0% 5%) 65%);">
+  <div class="w-[420px] bg-sl1 rounded-xl overflow-hidden">
+    <div class="h-0.5 w-full" style="background:var(--gradient-fire)"></div>
     <div class="p-10">
       <div class="text-center mb-8">
         <div class="mb-4">
-          <img src="/logo-1024.png" alt="Rewardwolf" class="w-32 h-32 rounded-2xl mx-auto object-cover sp"/>
+          <img src="/logo-1024.png" alt="Rewardwolf" class="w-32 h-32 rounded-2xl mx-auto object-cover"/>
         </div>
-        <h1 class="font-head font-black text-2xl tracking-tighter text-pc">WLF GİFT PANEL</h1>
-        <p class="text-[11px] font-mono text-out tracking-[.2em] uppercase mt-1">Command Center · Secure Access</p>
+        <h1 class="brand" style="font-size:28px">WLF GİFT PANEL</h1>
+        <p class="text-[11px] font-body text-out tracking-[.2em] uppercase mt-1">Command Center · Secure Access</p>
       </div>
       <div class="space-y-4">
         <div>
           <label class="block font-mono text-[10px] uppercase tracking-[.2em] text-out mb-2">Username</label>
           <input type="text" id="login-user" placeholder="admin" autocomplete="username"
-            class="w-full bg-slh border border-white/5 focus:border-pc/50 focus:ring-0 rounded-lg px-4 py-3 font-mono text-sm text-os placeholder:text-out/40 outline-none transition-colors"/>
+            class="w-full bg-slh border border-white/5 focus:border-pri/50 focus:ring-1 focus:ring-pri/30 rounded-lg px-4 py-3 font-mono text-sm text-os placeholder:text-out/40 outline-none transition-colors"/>
         </div>
         <div>
           <label class="block font-mono text-[10px] uppercase tracking-[.2em] text-out mb-2">Password</label>
           <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"
-            class="w-full bg-slh border border-white/5 focus:border-pc/50 focus:ring-0 rounded-lg px-4 py-3 font-mono text-sm text-os placeholder:text-out/40 outline-none transition-colors"/>
+            class="w-full bg-slh border border-white/5 focus:border-pri/50 focus:ring-1 focus:ring-pri/30 rounded-lg px-4 py-3 font-mono text-sm text-os placeholder:text-out/40 outline-none transition-colors"/>
         </div>
-        <button onclick="doLogin()" class="w-full bg-pc text-pc-on font-head font-black py-3 rounded-lg tracking-widest uppercase text-sm sp hover:brightness-110 active:scale-[.98] transition-all mt-2">
+        <button onclick="doLogin()" class="w-full font-body font-semibold py-3 rounded-lg tracking-widest uppercase text-sm active:scale-[.98] transition-all mt-2" style="background:hsl(var(--primary));color:#fff;letter-spacing:.05em;" onmouseover="this.style.boxShadow='var(--shadow-fire)'" onmouseout="this.style.boxShadow='none'">
           ACCESS SYSTEM
         </button>
         <div id="login-error" class="text-center text-sm font-mono min-h-[20px] text-e"></div>
@@ -201,8 +337,8 @@ input:not([class]),select:not([class]),textarea:not([class]){
       <div class="flex items-center gap-3 overflow-hidden">
         <img src="/logo-128.png" alt="Rewardwolf" class="w-8 h-8 rounded-lg flex-shrink-0 object-cover"/>
         <div class="sb-logo-text overflow-hidden">
-          <div class="font-head font-black text-xs tracking-widest uppercase text-pc whitespace-nowrap">WLF GİFT PANEL</div>
-          <div class="font-mono text-[9px] text-out whitespace-nowrap">v2.1.0 · REWARDWOLF</div>
+          <div class="brand">WLF GİFT PANEL</div>
+          <div class="brand-sub whitespace-nowrap">v2.1.0 · REWARDWOLF</div>
         </div>
       </div>
       <button onclick="toggleSidebar()" class="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-md hover:bg-slh text-out hover:text-os transition-all ml-1" title="Toggle sidebar">
@@ -231,7 +367,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
         <span id="daemon-status-text" class="font-mono text-[10px] text-out sb-footer-text whitespace-nowrap">Checking...</span>
       </div>
       <div id="sidebar-time" class="font-mono text-[9px] text-out/50 px-1 sb-footer-text truncate"></div>
-      <button onclick="logout()" class="w-full bg-transparent border border-white/10 hover:border-e/40 hover:text-e text-out rounded-lg py-2 font-head font-bold text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-1.5">
+      <button onclick="logout()" class="w-full bg-transparent border border-white/10 hover:border-des/40 hover:text-des text-out rounded-lg py-2 font-head font-bold text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-1.5">
         <span class="material-symbols-outlined text-sm flex-shrink-0">logout</span>
         <span class="sb-footer-text">Logout</span>
       </button>
@@ -246,7 +382,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
     <button onclick="openMobileSidebar()" class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-slh text-out hover:text-os transition-all">
       <span class="material-symbols-outlined text-xl">menu</span>
     </button>
-    <span class="font-head font-black text-sm tracking-widest uppercase text-pc">WLF GİFT PANEL</span>
+    <span class="brand" style="font-size:13px">WLF GİFT PANEL</span>
     <div class="flex items-center gap-2">
       <div class="sdot stopped" id="daemon-dot-mobile"></div>
     </div>
@@ -272,23 +408,23 @@ input:not([class]),select:not([class]),textarea:not([class]){
           <div class="bg-sl1 rounded-xl p-4 md:p-5 sp relative overflow-hidden group hover:bg-slh transition-colors">
             <div class="absolute top-0 right-0 p-3 opacity-[.04] group-hover:opacity-[.08] transition-opacity hidden md:block"><span class="material-symbols-outlined" style="font-size:72px">group</span></div>
             <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out mb-2">Players</p>
-            <div class="font-head font-black text-3xl md:text-4xl tracking-tighter text-pc" id="s-players">—</div>
+            <div class="font-head font-black text-3xl md:text-4xl tracking-tighter text-os" id="s-players">—</div>
             <div class="font-mono text-[11px] text-out mt-2" id="s-vip-sub"></div>
           </div>
           <div class="bg-sl1 rounded-xl p-4 md:p-5 sp relative overflow-hidden group hover:bg-slh transition-colors">
             <div class="absolute top-0 right-0 p-3 opacity-[.04] group-hover:opacity-[.08] transition-opacity hidden md:block"><span class="material-symbols-outlined" style="font-size:72px">redeem</span></div>
             <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out mb-2">Total Redemptions</p>
-            <div class="font-head font-black text-3xl md:text-4xl tracking-tighter text-s" id="s-total">—</div>
+            <div class="font-head font-black text-3xl md:text-4xl tracking-tighter text-os" id="s-total">—</div>
           </div>
           <div class="bg-sl1 rounded-xl p-4 md:p-5 sp relative overflow-hidden group hover:bg-slh transition-colors">
             <div class="absolute top-0 right-0 p-3 opacity-[.04] group-hover:opacity-[.08] transition-opacity hidden md:block"><span class="material-symbols-outlined" style="font-size:72px">task_alt</span></div>
             <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out mb-2">All-time Success</p>
-            <div class="font-head font-black text-3xl md:text-4xl tracking-tighter text-t" id="s-success">—</div>
+            <div class="font-head font-black text-3xl md:text-4xl tracking-tighter text-os" id="s-success">—</div>
           </div>
           <div class="bg-sl1 rounded-xl p-4 md:p-5 sp relative overflow-hidden group hover:bg-slh transition-colors">
             <div class="absolute top-0 right-0 p-3 opacity-[.04] group-hover:opacity-[.08] transition-opacity hidden md:block"><span class="material-symbols-outlined" style="font-size:72px">qr_code</span></div>
             <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out mb-2">Active Codes</p>
-            <div class="font-head font-black text-3xl md:text-4xl tracking-tighter text-pc" id="s-active-codes">—</div>
+            <div class="font-head font-black text-3xl md:text-4xl tracking-tighter text-os" id="s-active-codes">—</div>
           </div>
         </div>
 
@@ -348,7 +484,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
             <button onclick="syncMissingNames()" class="flex items-center gap-2 bg-slh hover:bg-sbr border border-white/5 rounded-lg px-4 py-2 font-mono text-[11px] text-out hover:text-os transition-all sp">
               <span class="material-symbols-outlined text-sm">badge</span>Sync Names
             </button>
-            <button onclick="openAddPlayer()" class="flex items-center gap-2 bg-pc text-pc-on font-head font-bold rounded-lg px-5 py-2 text-sm tracking-wide uppercase hover:brightness-110 active:scale-[.98] transition-all sp">
+            <button onclick="openAddPlayer()" class="flex items-center gap-2 bg-pri text-pri-fg font-body font-semibold rounded-lg px-5 py-2 text-sm tracking-wide uppercase hover:brightness-110 active:scale-[.98] transition-all">
               <span class="material-symbols-outlined text-sm">person_add</span>Add Player
             </button>
           </div>
@@ -358,10 +494,10 @@ input:not([class]),select:not([class]),textarea:not([class]){
           <div class="relative flex-1">
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-out text-sm">search</span>
             <input type="text" id="player-search" placeholder="Search by name or ID..." oninput="filterPlayers()"
-              class="w-full bg-slh border-none focus:ring-1 focus:ring-pc/30 rounded-lg pl-9 pr-4 py-2.5 font-mono text-sm text-os placeholder:text-out/40 outline-none"/>
+              class="w-full bg-slh border-none focus:ring-1 focus:ring-pri/30 rounded-lg pl-9 pr-4 py-2.5 font-mono text-sm text-os placeholder:text-out/40 outline-none"/>
           </div>
           <select id="player-filter" onchange="filterPlayers()"
-            class="bg-slh border-none focus:ring-1 focus:ring-pc/30 rounded-lg px-4 py-2.5 font-mono text-sm text-os outline-none cursor-pointer">
+            class="bg-slh border-none focus:ring-1 focus:ring-pri/30 rounded-lg px-4 py-2.5 font-mono text-sm text-os outline-none cursor-pointer">
             <option value="all">All Players</option>
             <option value="active">Active</option>
             <option value="vip">VIP Only</option>
@@ -443,10 +579,10 @@ input:not([class]),select:not([class]),textarea:not([class]){
             <button onclick="daemonAction('stop')" class="w-full py-2.5 bg-ec text-ec-on font-head font-black rounded-lg flex items-center justify-center gap-2 hover:brightness-110 active:scale-[.98] transition-all sp text-sm">
               <span class="material-symbols-outlined text-sm" style="font-variation-settings:'FILL' 1;">stop</span>STOP
             </button>
-            <button onclick="daemonAction('restart')" class="w-full py-2.5 bg-pc text-pc-on font-head font-black rounded-lg flex items-center justify-center gap-2 hover:brightness-110 active:scale-[.98] transition-all sp text-sm">
+            <button onclick="daemonAction('restart')" class="w-full py-2.5 bg-pri text-pri-fg font-head font-black rounded-lg flex items-center justify-center gap-2 hover:brightness-110 active:scale-[.98] transition-all text-sm">
               <span class="material-symbols-outlined text-sm">refresh</span>RESTART
             </button>
-            <button onclick="daemonAction('rebuild')" class="w-full py-2.5 bg-sc text-sc-on font-head font-black rounded-lg flex items-center justify-center gap-2 hover:brightness-110 active:scale-[.98] transition-all sp text-sm">
+            <button onclick="daemonAction('rebuild')" class="w-full py-2.5 bg-s text-white font-head font-black rounded-lg flex items-center justify-center gap-2 hover:brightness-110 active:scale-[.98] transition-all text-sm">
               <span class="material-symbols-outlined text-sm">build</span>REBUILD
             </button>
           </div>
@@ -457,7 +593,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
             <div class="flex items-center gap-3">
               <div id="ctrl-daemon-dot" class="sdot stopped"></div>
               <div>
-                <div id="ctrl-daemon-status" class="font-head font-bold text-sm" style="color:#ffb4ab">Unknown</div>
+                <div id="ctrl-daemon-status" class="font-head font-bold text-sm" style="color:hsl(var(--destructive))">Unknown</div>
                 <div id="ctrl-daemon-uptime" class="font-mono text-[10px] text-out/60 mt-0.5">—</div>
               </div>
             </div>
@@ -468,7 +604,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
               </div>
               <div>
                 <div class="flex justify-between font-mono text-[10px] text-out/60 mb-1"><span>RAM</span><span id="ctrl-ram-val">—</span></div>
-                <div class="h-1.5 bg-sl0 rounded-full overflow-hidden"><div id="ctrl-ram-bar" class="h-full bg-pc rounded-full transition-all" style="width:0%"></div></div>
+                <div class="h-1.5 bg-sl0 rounded-full overflow-hidden"><div id="ctrl-ram-bar" class="h-full bg-ember rounded-full transition-all" style="width:0%"></div></div>
               </div>
               <div>
                 <div class="flex justify-between font-mono text-[10px] text-out/60 mb-1"><span>TEMP</span><span id="ctrl-temp-val">—</span></div>
@@ -482,7 +618,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
             <div class="bg-slh px-4 py-2.5 flex items-center gap-3 border-b border-white/5">
               <div class="flex gap-1.5">
                 <div class="w-2.5 h-2.5 rounded-full bg-e/40"></div>
-                <div class="w-2.5 h-2.5 rounded-full bg-pc/40"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-ember/40"></div>
                 <div class="w-2.5 h-2.5 rounded-full bg-t/40"></div>
               </div>
               <span class="font-mono text-[10px] text-out/60">wolf_terminal — rewardwolf control</span>
@@ -497,7 +633,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
                 <input type="text" id="term-input" placeholder="docker logs kingshot-daemon --tail 30"
                   class="flex-1 bg-transparent border-none outline-none font-mono text-sm text-os placeholder:text-out/40"/>
               </div>
-              <button onclick="runTerminal()" class="bg-pc text-pc-on font-head font-bold px-4 rounded-lg text-sm hover:brightness-110 active:scale-[.98] transition-all sp">Run</button>
+              <button onclick="runTerminal()" class="bg-pri text-pri-fg font-head font-bold px-4 rounded-lg text-sm hover:brightness-110 active:scale-[.98] transition-all">Run</button>
             </div>
           </div>
         </div>
@@ -538,7 +674,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
           <div class="bg-sl1 rounded-xl p-5">
             <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out mb-4">Trigger Distribution</p>
             <div class="flex gap-3">
-              <select id="trigger-code-select" class="flex-1 bg-slh border border-white/5 focus:border-pc/30 rounded-lg px-3 py-2 text-sm text-os outline-none">
+              <select id="trigger-code-select" class="flex-1 bg-slh border border-white/5 focus:border-pri/30 rounded-lg px-3 py-2 text-sm text-os outline-none">
                 <option value="">Select active code...</option>
               </select>
               <button onclick="triggerDistribution()" class="bg-tc text-tc-on font-head font-bold px-4 rounded-lg text-sm hover:brightness-110 active:scale-[.98] transition-all sp flex items-center gap-1.5">
@@ -551,10 +687,10 @@ input:not([class]),select:not([class]),textarea:not([class]){
             <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out mb-4">Add Code Manually</p>
             <div class="flex gap-2">
               <input type="text" id="new-code-input" placeholder="GIFTCODE"
-                class="flex-1 bg-slh border border-white/5 focus:border-pc/30 rounded-lg px-3 py-2 text-sm text-os placeholder:text-out/40 outline-none"/>
+                class="flex-1 bg-slh border border-white/5 focus:border-pri/30 rounded-lg px-3 py-2 text-sm text-os placeholder:text-out/40 outline-none"/>
               <input type="date" id="new-code-expires"
-                class="bg-slh border border-white/5 focus:border-pc/30 rounded-lg px-3 py-2 text-sm text-os outline-none"/>
-              <button onclick="addCodeManually()" class="bg-pc text-pc-on font-head font-bold px-4 rounded-lg text-sm hover:brightness-110 active:scale-[.98] transition-all sp flex items-center gap-1.5">
+                class="bg-slh border border-white/5 focus:border-pri/30 rounded-lg px-3 py-2 text-sm text-os outline-none"/>
+              <button onclick="addCodeManually()" class="bg-pri text-pri-fg font-head font-bold px-4 rounded-lg text-sm hover:brightness-110 active:scale-[.98] transition-all flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-sm">add</span>Add
               </button>
             </div>
@@ -565,12 +701,12 @@ input:not([class]),select:not([class]),textarea:not([class]){
         <div class="bg-sl1 rounded-xl p-5 mb-5">
           <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out mb-4">Send Message</p>
           <div class="flex flex-col md:flex-row gap-3">
-            <select id="msg-channel-select" class="bg-slh border border-white/5 focus:border-pc/30 rounded-lg px-3 py-2 text-sm text-os outline-none md:w-56">
+            <select id="msg-channel-select" class="bg-slh border border-white/5 focus:border-pri/30 rounded-lg px-3 py-2 text-sm text-os outline-none md:w-56">
               <option value="">Select channel...</option>
             </select>
             <textarea id="channel-msg" placeholder="Write your message..."
-              class="flex-1 bg-slh border border-white/5 focus:border-pc/30 focus:ring-0 rounded-lg px-4 py-2.5 text-sm text-os placeholder:text-out/40 outline-none resize-none h-20"></textarea>
-            <button onclick="sendChannelMessage()" class="bg-pc text-pc-on font-head font-bold rounded-lg px-5 py-2 text-sm uppercase hover:brightness-110 active:scale-[.98] transition-all sp flex items-center gap-2 self-end">
+              class="flex-1 bg-slh border border-white/5 focus:border-pri/30 focus:ring-0 rounded-lg px-4 py-2.5 text-sm text-os placeholder:text-out/40 outline-none resize-none h-20"></textarea>
+            <button onclick="sendChannelMessage()" class="bg-pri text-pri-fg font-head font-bold rounded-lg px-5 py-2 text-sm uppercase hover:brightness-110 active:scale-[.98] transition-all flex items-center gap-2 self-end">
               <span class="material-symbols-outlined text-sm">send</span>Send
             </button>
           </div>
@@ -582,7 +718,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
           <div class="bg-sl1 rounded-xl p-5">
             <div class="flex items-center justify-between mb-4">
               <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out">System Check</p>
-              <button onclick="runSystemCheck()" id="sys-check-btn" class="bg-sc text-sc-on font-head font-bold px-4 py-1.5 rounded-lg text-xs hover:brightness-110 active:scale-[.98] transition-all sp flex items-center gap-1.5">
+              <button onclick="runSystemCheck()" id="sys-check-btn" class="bg-s text-white font-head font-bold px-4 py-1.5 rounded-lg text-xs hover:brightness-110 active:scale-[.98] transition-all flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-sm">troubleshoot</span>Run
               </button>
             </div>
@@ -594,7 +730,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
           <div class="bg-sl1 rounded-xl p-5">
             <div class="flex items-center justify-between mb-4">
               <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out">Test All Channels</p>
-              <button onclick="testAllChannels()" class="bg-pc text-pc-on font-head font-bold px-4 py-1.5 rounded-lg text-xs hover:brightness-110 active:scale-[.98] transition-all sp flex items-center gap-1.5">
+              <button onclick="testAllChannels()" class="bg-pri text-pri-fg font-head font-bold px-4 py-1.5 rounded-lg text-xs hover:brightness-110 active:scale-[.98] transition-all flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-sm">notifications_active</span>Test All
               </button>
             </div>
@@ -622,13 +758,13 @@ input:not([class]),select:not([class]),textarea:not([class]){
         </div>
 
         <div class="bg-sl1 rounded-xl p-3 mb-4 flex items-center gap-3 flex-wrap border border-white/5">
-          <select id="log-lines" class="bg-slh border-none focus:ring-1 focus:ring-pc/30 rounded-lg px-3 py-2 font-mono text-sm text-os outline-none cursor-pointer">
+          <select id="log-lines" class="bg-slh border-none focus:ring-1 focus:ring-pri/30 rounded-lg px-3 py-2 font-mono text-sm text-os outline-none cursor-pointer">
             <option value="50">50 lines</option>
             <option value="100" selected>100 lines</option>
             <option value="200">200 lines</option>
             <option value="500">500 lines</option>
           </select>
-          <select id="log-level" onchange="loadLogs()" class="bg-slh border-none focus:ring-1 focus:ring-pc/30 rounded-lg px-3 py-2 font-mono text-sm text-os outline-none cursor-pointer">
+          <select id="log-level" onchange="loadLogs()" class="bg-slh border-none focus:ring-1 focus:ring-pri/30 rounded-lg px-3 py-2 font-mono text-sm text-os outline-none cursor-pointer">
             <option value="ALL">All Levels</option>
             <option value="INFO">Info</option>
             <option value="WARNING">Warning</option>
@@ -637,13 +773,13 @@ input:not([class]),select:not([class]),textarea:not([class]){
           <div class="relative flex-1 min-w-[160px]">
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-out text-sm">search</span>
             <input type="text" id="log-search" placeholder="Filter logs..." oninput="loadLogs()"
-              class="w-full bg-slh border-none focus:ring-1 focus:ring-pc/30 rounded-lg pl-9 pr-4 py-2 font-mono text-sm text-os placeholder:text-out/40 outline-none"/>
+              class="w-full bg-slh border-none focus:ring-1 focus:ring-pri/30 rounded-lg pl-9 pr-4 py-2 font-mono text-sm text-os placeholder:text-out/40 outline-none"/>
           </div>
           <button onclick="loadLogs()" class="p-2 bg-slh hover:bg-sbr rounded-lg text-out hover:text-os transition-all">
             <span class="material-symbols-outlined text-sm">refresh</span>
           </button>
           <label class="flex items-center gap-2 font-mono text-[11px] text-out cursor-pointer">
-            <input type="checkbox" id="auto-scroll" checked class="rounded accent-pc bg-slh border-white/20"/>
+            <input type="checkbox" id="auto-scroll" checked class="rounded accent-pri bg-slh border-white/20"/>
             Auto-scroll
           </label>
         </div>
@@ -681,14 +817,14 @@ input:not([class]),select:not([class]),textarea:not([class]){
         <div class="bg-sl1 rounded-t-xl px-4 py-2.5 border-b border-white/5 flex items-center gap-2">
           <div class="flex gap-1.5">
             <div class="w-2.5 h-2.5 rounded-full bg-e/40"></div>
-            <div class="w-2.5 h-2.5 rounded-full bg-pc/40"></div>
+            <div class="w-2.5 h-2.5 rounded-full bg-ember/40"></div>
             <div class="w-2.5 h-2.5 rounded-full bg-t/40"></div>
           </div>
           <span class="font-mono text-[10px] text-out/60 ml-2">daemon.py — Python</span>
           <span class="ml-auto font-mono text-[10px] text-e/70">⚠ Save &amp; Rebuild restarts the container</span>
         </div>
         <textarea id="code-editor" spellcheck="false"
-          class="w-full bg-sl0 rounded-b-xl border border-white/5 border-t-0 text-os font-mono p-5 h-[580px] resize-none outline-none focus:ring-1 focus:ring-pc/30"
+          class="w-full bg-sl0 rounded-b-xl border border-white/5 border-t-0 text-os font-mono p-5 h-[580px] resize-none outline-none focus:ring-1 focus:ring-pri/30"
           style="font-size:12px;line-height:1.65;tab-size:4;"
           onkeydown="if(event.key==='Tab'){event.preventDefault();let s=this.selectionStart;this.value=this.value.substring(0,s)+'    '+this.value.substring(this.selectionEnd);this.selectionStart=this.selectionEnd=s+4;}"></textarea>
       </div>
@@ -702,7 +838,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
           <h1 class="font-head font-black text-2xl md:text-4xl tracking-tighter text-os">Settings</h1>
         </div>
         <div id="settings-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5 mb-6"></div>
-        <button onclick="saveSettings()" class="flex items-center gap-2 bg-pc text-pc-on font-head font-black rounded-lg px-8 py-3 text-sm tracking-widest uppercase hover:brightness-110 active:scale-[.98] transition-all sp">
+        <button onclick="saveSettings()" class="flex items-center gap-2 bg-pri text-pri-fg font-body font-semibold rounded-lg px-8 py-3 text-sm tracking-widest uppercase hover:brightness-110 active:scale-[.98] transition-all">
           <span class="material-symbols-outlined text-sm">save</span>Save Settings
         </button>
       </div>
@@ -717,7 +853,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
             <h1 class="font-head font-black text-2xl md:text-4xl tracking-tighter text-os">Notifications</h1>
             <p class="font-body text-sm text-out mt-2">Telegram gruplarına ve Discord sunucularına gönderilecek bildirimler. Her kanal için hangi olayların gönderileceğini ve mesaj şablonunu özelleştirebilirsiniz.</p>
           </div>
-          <button onclick="openChannelModal()" class="flex-shrink-0 flex items-center gap-2 bg-pc text-pc-on font-head font-bold rounded-lg px-5 py-3 text-sm uppercase hover:brightness-110 active:scale-[.98] transition-all sp">
+          <button onclick="openChannelModal()" class="flex-shrink-0 flex items-center gap-2 bg-pri text-pri-fg font-body font-semibold rounded-lg px-5 py-3 text-sm uppercase hover:brightness-110 active:scale-[.98] transition-all">
             <span class="material-symbols-outlined text-sm">add</span>Add Channel
           </button>
         </div>
@@ -732,7 +868,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
         <div>
           <p class="font-mono text-[10px] uppercase tracking-[.2em] text-out/60 mb-1">System</p>
           <h1 class="font-head font-black text-2xl md:text-4xl tracking-tighter text-os">API Keys</h1>
-          <p class="font-body text-sm text-out mt-2">Dışa açık endpoint'lere erişim için API anahtarları. Her istekte <code class="bg-sl1 px-1.5 py-0.5 rounded text-p font-mono text-xs">X-API-Key</code> header'ı ile gönderilmelidir.</p>
+          <p class="font-body text-sm text-out mt-2">Dışa açık endpoint'lere erişim için API anahtarları. Her istekte <code class="bg-sl1 px-1.5 py-0.5 rounded text-os font-mono text-xs">X-API-Key</code> header'ı ile gönderilmelidir.</p>
         </div>
 
         <!-- Create Key -->
@@ -740,10 +876,10 @@ input:not([class]),select:not([class]),textarea:not([class]){
           <h2 class="font-head font-bold text-sm uppercase tracking-wider text-out mb-4">Yeni Anahtar Oluştur</h2>
           <div class="flex flex-col sm:flex-row gap-3">
             <input type="text" id="apikey-name" placeholder="İsim (örn. Sköll Bot)"
-              class="flex-1 bg-sl0 border border-white/5 focus:border-pc/40 rounded-lg px-4 py-2.5 font-mono text-sm text-os placeholder:text-out/40 outline-none transition-colors"/>
+              class="flex-1 bg-sl0 border border-white/5 focus:border-pri/40 rounded-lg px-4 py-2.5 font-mono text-sm text-os placeholder:text-out/40 outline-none transition-colors"/>
             <input type="text" id="apikey-desc" placeholder="Açıklama (isteğe bağlı)"
-              class="flex-1 bg-sl0 border border-white/5 focus:border-pc/40 rounded-lg px-4 py-2.5 font-mono text-sm text-os placeholder:text-out/40 outline-none transition-colors"/>
-            <button onclick="createApiKey()" class="flex items-center gap-2 bg-pc text-pc-on font-head font-bold rounded-lg px-5 py-2.5 text-sm uppercase hover:brightness-110 active:scale-[.98] transition-all sp whitespace-nowrap">
+              class="flex-1 bg-sl0 border border-white/5 focus:border-pri/40 rounded-lg px-4 py-2.5 font-mono text-sm text-os placeholder:text-out/40 outline-none transition-colors"/>
+            <button onclick="createApiKey()" class="flex items-center gap-2 bg-pri text-pri-fg font-body font-semibold rounded-lg px-5 py-2.5 text-sm uppercase hover:brightness-110 active:scale-[.98] transition-all whitespace-nowrap">
               <span class="material-symbols-outlined text-sm">add</span>Oluştur
             </button>
           </div>
@@ -763,7 +899,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
             <div class="bg-sl1 border border-white/5 rounded-xl overflow-hidden">
               <div class="flex items-center gap-3 px-5 py-3 border-b border-white/5">
                 <span class="font-mono text-[11px] font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">GET</span>
-                <code class="font-mono text-sm text-p">/api/public/dashboard</code>
+                <code class="font-mono text-sm text-os">/api/public/dashboard</code>
                 <span class="font-body text-xs text-out ml-auto">Genel istatistikler</span>
               </div>
               <pre class="font-mono text-[11px] text-out/80 px-5 py-3 overflow-x-auto bg-sl0/40">{
@@ -781,7 +917,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
             <div class="bg-sl1 border border-white/5 rounded-xl overflow-hidden">
               <div class="flex items-center gap-3 px-5 py-3 border-b border-white/5">
                 <span class="font-mono text-[11px] font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">GET</span>
-                <code class="font-mono text-sm text-p">/api/public/codes</code>
+                <code class="font-mono text-sm text-os">/api/public/codes</code>
                 <span class="font-body text-xs text-out ml-auto">Tüm kodlar ve istatistikleri</span>
               </div>
               <pre class="font-mono text-[11px] text-out/80 px-5 py-3 overflow-x-auto bg-sl0/40">[{
@@ -801,7 +937,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
             <div class="bg-sl1 border border-white/5 rounded-xl overflow-hidden">
               <div class="flex items-center gap-3 px-5 py-3 border-b border-white/5">
                 <span class="font-mono text-[11px] font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">GET</span>
-                <code class="font-mono text-sm text-p">/api/public/codes/<span class="text-out">{code}</span></code>
+                <code class="font-mono text-sm text-os">/api/public/codes/<span class="text-out">{code}</span></code>
                 <span class="font-body text-xs text-out ml-auto">Tek kod detayı</span>
               </div>
               <pre class="font-mono text-[11px] text-out/80 px-5 py-3 overflow-x-auto bg-sl0/40">404 → { "detail": "Code not found" }
@@ -811,7 +947,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
             <div class="bg-sl1 border border-white/5 rounded-xl overflow-hidden">
               <div class="flex items-center gap-3 px-5 py-3 border-b border-white/5">
                 <span class="font-mono text-[11px] font-bold bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">GET</span>
-                <code class="font-mono text-sm text-p">/api/public/player/<span class="text-out">{player_id}</span></code>
+                <code class="font-mono text-sm text-os">/api/public/player/<span class="text-out">{player_id}</span></code>
                 <span class="font-body text-xs text-out ml-auto">Oyuncunun redemption geçmişi</span>
               </div>
               <pre class="font-mono text-[11px] text-out/80 px-5 py-3 overflow-x-auto bg-sl0/40">{
@@ -843,7 +979,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
 <!-- Channel Modal -->
 <div class="modal-overlay" id="modal-channel">
   <div class="w-[560px] max-h-[90vh] overflow-y-auto bg-sl1 rounded-xl sp">
-    <div class="h-0.5 bg-pc"></div>
+    <div class="h-0.5 w-full" style="background:var(--gradient-fire)"></div>
     <div class="p-7 space-y-5">
       <h2 class="font-head font-black text-xl tracking-tight" id="channel-modal-title">Add Notification Channel</h2>
 
@@ -852,12 +988,12 @@ input:not([class]),select:not([class]),textarea:not([class]){
         <div>
           <label class="block font-mono text-[10px] uppercase tracking-[.2em] text-out mb-2">Channel Name</label>
           <input type="text" id="ch-name" placeholder="e.g. Klan Telegram Grubu"
-            class="w-full bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-4 py-3 font-mono text-sm text-os placeholder:text-out/40 outline-none"/>
+            class="w-full bg-slh border border-white/5 focus:border-pri/40 rounded-lg px-4 py-3 font-mono text-sm text-os placeholder:text-out/40 outline-none"/>
         </div>
         <div>
           <label class="block font-mono text-[10px] uppercase tracking-[.2em] text-out mb-2">Platform</label>
           <select id="ch-platform" onchange="updateChannelTargetLabel()"
-            class="w-full bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-4 py-3 font-mono text-sm text-os outline-none cursor-pointer">
+            class="w-full bg-slh border border-white/5 focus:border-pri/40 rounded-lg px-4 py-3 font-mono text-sm text-os outline-none cursor-pointer">
             <option value="telegram">Telegram</option>
             <option value="discord">Discord</option>
           </select>
@@ -868,7 +1004,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
       <div>
         <label class="block font-mono text-[10px] uppercase tracking-[.2em] text-out mb-2" id="ch-target-label">Telegram Chat ID</label>
         <input type="text" id="ch-target" placeholder="-100xxxxxxxxxx"
-          class="w-full bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-4 py-3 font-mono text-sm text-os placeholder:text-out/40 outline-none"/>
+          class="w-full bg-slh border border-white/5 focus:border-pri/40 rounded-lg px-4 py-3 font-mono text-sm text-os placeholder:text-out/40 outline-none"/>
         <p class="font-mono text-[10px] text-out/50 mt-1.5" id="ch-target-hint">Botu gruba ekleyin ve Chat ID'sini girin. Bot ID'si için @userinfobot kullanabilirsiniz.</p>
       </div>
 
@@ -878,13 +1014,13 @@ input:not([class]),select:not([class]),textarea:not([class]){
         <div class="space-y-2">
           <div class="flex items-center gap-3">
             <label class="flex items-center gap-3 cursor-pointer group flex-1">
-              <input type="checkbox" id="ch-ev-new" class="w-4 h-4 rounded accent-pc" checked/>
+              <input type="checkbox" id="ch-ev-new" class="w-4 h-4 rounded accent-pri" checked/>
               <div>
                 <div class="font-body text-sm text-os">🎉 New Gift Code Found</div>
                 <div class="font-mono text-[10px] text-out/60">Yeni bir gift code bulunduğunda</div>
               </div>
             </label>
-            <select id="ch-mention-new" style="display:none" class="bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-3 py-1.5 font-mono text-xs text-os outline-none cursor-pointer" title="Discord mention">
+            <select id="ch-mention-new" style="display:none" class="bg-slh border border-white/5 focus:border-pri/40 rounded-lg px-3 py-1.5 font-mono text-xs text-os outline-none cursor-pointer" title="Discord mention">
               <option value="none">No mention</option>
               <option value="everyone" selected>@everyone</option>
               <option value="here">@here</option>
@@ -892,13 +1028,13 @@ input:not([class]),select:not([class]),textarea:not([class]){
           </div>
           <div class="flex items-center gap-3">
             <label class="flex items-center gap-3 cursor-pointer group flex-1">
-              <input type="checkbox" id="ch-ev-dist" class="w-4 h-4 rounded accent-pc" checked/>
+              <input type="checkbox" id="ch-ev-dist" class="w-4 h-4 rounded accent-pri" checked/>
               <div>
                 <div class="font-body text-sm text-os">✅ Distribution Complete</div>
                 <div class="font-mono text-[10px] text-out/60">Dağıtım tamamlandığında</div>
               </div>
             </label>
-            <select id="ch-mention-dist" style="display:none" class="bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-3 py-1.5 font-mono text-xs text-os outline-none cursor-pointer" title="Discord mention">
+            <select id="ch-mention-dist" style="display:none" class="bg-slh border border-white/5 focus:border-pri/40 rounded-lg px-3 py-1.5 font-mono text-xs text-os outline-none cursor-pointer" title="Discord mention">
               <option value="none" selected>No mention</option>
               <option value="everyone">@everyone</option>
               <option value="here">@here</option>
@@ -906,13 +1042,13 @@ input:not([class]),select:not([class]),textarea:not([class]){
           </div>
           <div class="flex items-center gap-3">
             <label class="flex items-center gap-3 cursor-pointer group flex-1">
-              <input type="checkbox" id="ch-ev-expiry" class="w-4 h-4 rounded accent-pc" checked/>
+              <input type="checkbox" id="ch-ev-expiry" class="w-4 h-4 rounded accent-pri" checked/>
               <div>
                 <div class="font-body text-sm text-os">⏰ Expiry Warning</div>
                 <div class="font-mono text-[10px] text-out/60">Kod sona ermeden 72 saat önce</div>
               </div>
             </label>
-            <select id="ch-mention-expiry" style="display:none" class="bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-3 py-1.5 font-mono text-xs text-os outline-none cursor-pointer" title="Discord mention">
+            <select id="ch-mention-expiry" style="display:none" class="bg-slh border border-white/5 focus:border-pri/40 rounded-lg px-3 py-1.5 font-mono text-xs text-os outline-none cursor-pointer" title="Discord mention">
               <option value="none">No mention</option>
               <option value="everyone" selected>@everyone</option>
               <option value="here">@here</option>
@@ -920,13 +1056,13 @@ input:not([class]),select:not([class]),textarea:not([class]){
           </div>
           <div class="flex items-center gap-3">
             <label class="flex items-center gap-3 cursor-pointer group flex-1">
-              <input type="checkbox" id="ch-ev-daily" class="w-4 h-4 rounded accent-pc"/>
+              <input type="checkbox" id="ch-ev-daily" class="w-4 h-4 rounded accent-pri"/>
               <div>
                 <div class="font-body text-sm text-os">📅 Daily Summary</div>
                 <div class="font-mono text-[10px] text-out/60">Günlük istatistik özeti (gece 00:00)</div>
               </div>
             </label>
-            <select id="ch-mention-daily" style="display:none" class="bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-3 py-1.5 font-mono text-xs text-os outline-none cursor-pointer" title="Discord mention">
+            <select id="ch-mention-daily" style="display:none" class="bg-slh border border-white/5 focus:border-pri/40 rounded-lg px-3 py-1.5 font-mono text-xs text-os outline-none cursor-pointer" title="Discord mention">
               <option value="none" selected>No mention</option>
               <option value="everyone">@everyone</option>
               <option value="here">@here</option>
@@ -934,13 +1070,13 @@ input:not([class]),select:not([class]),textarea:not([class]){
           </div>
           <div class="flex items-center gap-3">
             <label class="flex items-center gap-3 cursor-pointer group flex-1">
-              <input type="checkbox" id="ch-ev-dist-state" class="w-4 h-4 rounded accent-pc" checked/>
+              <input type="checkbox" id="ch-ev-dist-state" class="w-4 h-4 rounded accent-pri" checked/>
               <div>
                 <div class="font-body text-sm text-os">⚙️ Distribution State</div>
                 <div class="font-mono text-[10px] text-out/60">Pause / resume / cancel / retry / expire olayları</div>
               </div>
             </label>
-            <select id="ch-mention-dist-state" style="display:none" class="bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-3 py-1.5 font-mono text-xs text-os outline-none cursor-pointer" title="Discord mention">
+            <select id="ch-mention-dist-state" style="display:none" class="bg-slh border border-white/5 focus:border-pri/40 rounded-lg px-3 py-1.5 font-mono text-xs text-os outline-none cursor-pointer" title="Discord mention">
               <option value="none" selected>No mention</option>
               <option value="everyone">@everyone</option>
               <option value="here">@here</option>
@@ -948,13 +1084,13 @@ input:not([class]),select:not([class]),textarea:not([class]){
           </div>
           <div class="flex items-center gap-3">
             <label class="flex items-center gap-3 cursor-pointer group flex-1">
-              <input type="checkbox" id="ch-ev-dist-progress" class="w-4 h-4 rounded accent-pc"/>
+              <input type="checkbox" id="ch-ev-dist-progress" class="w-4 h-4 rounded accent-pri"/>
               <div>
                 <div class="font-body text-sm text-os">🔄 Distribution Progress</div>
                 <div class="font-mono text-[10px] text-out/60">Her oyuncu için anlık sonuç (çok sık — varsayılan kapalı)</div>
               </div>
             </label>
-            <select id="ch-mention-dist-progress" style="display:none" class="bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-3 py-1.5 font-mono text-xs text-os outline-none cursor-pointer" title="Discord mention">
+            <select id="ch-mention-dist-progress" style="display:none" class="bg-slh border border-white/5 focus:border-pri/40 rounded-lg px-3 py-1.5 font-mono text-xs text-os outline-none cursor-pointer" title="Discord mention">
               <option value="none" selected>No mention</option>
               <option value="everyone">@everyone</option>
               <option value="here">@here</option>
@@ -970,32 +1106,32 @@ input:not([class]),select:not([class]),textarea:not([class]){
           Customize Message Templates (optional)
         </button>
         <div id="ch-templates" class="hidden mt-3 space-y-3">
-          <p class="font-mono text-[10px] text-out/50">Değişkenler: <code class="text-p">{code}</code> <code class="text-p">{delivered}</code> <code class="text-p">{failed}</code> <code class="text-p">{total}</code> <code class="text-p">{hours}</code> <code class="text-p">{players}</code> — Boş bırakırsanız varsayılan şablon kullanılır.</p>
+          <p class="font-mono text-[10px] text-out/50">Değişkenler: <code class="text-os">{code}</code> <code class="text-os">{delivered}</code> <code class="text-os">{failed}</code> <code class="text-os">{total}</code> <code class="text-os">{hours}</code> <code class="text-os">{players}</code> — Boş bırakırsanız varsayılan şablon kullanılır.</p>
           <div>
             <label class="block font-mono text-[10px] text-out/60 mb-1">New Code Template</label>
             <textarea id="ch-tpl-new" rows="3" placeholder="Boş = varsayılan şablon"
-              class="w-full bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-4 py-3 font-mono text-xs text-os placeholder:text-out/40 outline-none resize-none"></textarea>
+              class="w-full bg-slh border border-white/5 focus:border-pri/40 rounded-lg px-4 py-3 font-mono text-xs text-os placeholder:text-out/40 outline-none resize-none"></textarea>
           </div>
           <div>
             <label class="block font-mono text-[10px] text-out/60 mb-1">Distribution Complete Template</label>
             <textarea id="ch-tpl-dist" rows="3" placeholder="Boş = varsayılan şablon"
-              class="w-full bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-4 py-3 font-mono text-xs text-os placeholder:text-out/40 outline-none resize-none"></textarea>
+              class="w-full bg-slh border border-white/5 focus:border-pri/40 rounded-lg px-4 py-3 font-mono text-xs text-os placeholder:text-out/40 outline-none resize-none"></textarea>
           </div>
           <div>
             <label class="block font-mono text-[10px] text-out/60 mb-1">Expiry Warning Template</label>
             <textarea id="ch-tpl-expiry" rows="3" placeholder="Boş = varsayılan şablon"
-              class="w-full bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-4 py-3 font-mono text-xs text-os placeholder:text-out/40 outline-none resize-none"></textarea>
+              class="w-full bg-slh border border-white/5 focus:border-pri/40 rounded-lg px-4 py-3 font-mono text-xs text-os placeholder:text-out/40 outline-none resize-none"></textarea>
           </div>
           <div>
             <label class="block font-mono text-[10px] text-out/60 mb-1">Daily Summary Template</label>
             <textarea id="ch-tpl-daily" rows="3" placeholder="Boş = varsayılan şablon"
-              class="w-full bg-slh border border-white/5 focus:border-pc/40 rounded-lg px-4 py-3 font-mono text-xs text-os placeholder:text-out/40 outline-none resize-none"></textarea>
+              class="w-full bg-slh border border-white/5 focus:border-pri/40 rounded-lg px-4 py-3 font-mono text-xs text-os placeholder:text-out/40 outline-none resize-none"></textarea>
           </div>
         </div>
       </div>
 
       <div class="flex gap-3 pt-2">
-        <button onclick="saveChannel()" class="flex-1 bg-pc text-pc-on font-head font-bold rounded-lg py-3 text-sm uppercase hover:brightness-110 active:scale-[.98] transition-all sp" id="ch-save-btn">Save Channel</button>
+        <button onclick="saveChannel()" class="flex-1 bg-pri text-pri-fg font-body font-semibold rounded-lg py-3 text-sm uppercase hover:brightness-110 active:scale-[.98] transition-all" id="ch-save-btn">Save Channel</button>
         <button onclick="closeModal('modal-channel')" class="px-6 bg-slh text-out hover:text-os font-head font-bold rounded-lg py-3 text-sm uppercase transition-all">Cancel</button>
       </div>
     </div>
@@ -1004,27 +1140,27 @@ input:not([class]),select:not([class]),textarea:not([class]){
 
 <div class="modal-overlay" id="modal-add-player">
   <div class="w-[460px] bg-sl1 rounded-xl overflow-hidden sp">
-    <div class="h-0.5 bg-pc"></div>
+    <div class="h-0.5 w-full" style="background:var(--gradient-fire)"></div>
     <div class="p-7">
       <h2 class="font-head font-black text-xl tracking-tight mb-6">Add Player</h2>
       <div class="space-y-4">
         <div>
           <label class="block font-mono text-[10px] uppercase tracking-[.2em] text-out mb-2">Player ID</label>
           <input type="text" id="new-pid" placeholder="e.g. 12345678" onblur="resolvePlayerName(this.value)"
-            class="w-full bg-slh border border-white/5 focus:border-pc/40 focus:ring-0 rounded-lg px-4 py-3 font-mono text-sm text-os placeholder:text-out/40 outline-none"/>
+            class="w-full bg-slh border border-white/5 focus:border-pri/40 focus:ring-0 rounded-lg px-4 py-3 font-mono text-sm text-os placeholder:text-out/40 outline-none"/>
         </div>
         <div>
           <label class="block font-mono text-[10px] uppercase tracking-[.2em] text-out mb-2">Username</label>
           <input type="text" id="new-pname" placeholder="e.g. Selman"
-            class="w-full bg-slh border border-white/5 focus:border-pc/40 focus:ring-0 rounded-lg px-4 py-3 font-mono text-sm text-os placeholder:text-out/40 outline-none"/>
+            class="w-full bg-slh border border-white/5 focus:border-pri/40 focus:ring-0 rounded-lg px-4 py-3 font-mono text-sm text-os placeholder:text-out/40 outline-none"/>
         </div>
         <label class="flex items-center gap-3 cursor-pointer">
-          <input type="checkbox" id="new-pvip" class="w-4 h-4 rounded accent-pc bg-slh border-white/20"/>
-          <span class="font-body text-sm text-pc">VIP Player</span>
+          <input type="checkbox" id="new-pvip" class="w-4 h-4 rounded accent-pri bg-slh border-white/20"/>
+          <span class="font-body text-sm text-ember">VIP Player</span>
         </label>
         <div>
           <label class="block font-mono text-[10px] uppercase tracking-[.2em] text-out mb-2">Role</label>
-          <select id="new-player-role" class="w-full bg-slh border border-white/5 focus:border-pc/40 focus:ring-0 rounded-lg px-4 py-3 font-mono text-sm text-os outline-none cursor-pointer">
+          <select id="new-player-role" class="w-full bg-slh border border-white/5 focus:border-pri/40 focus:ring-0 rounded-lg px-4 py-3 font-mono text-sm text-os outline-none cursor-pointer">
             <option value="R1">R1</option><option value="R2">R2</option>
             <option value="R3">R3</option><option value="R4">R4</option><option value="R5">R5</option>
           </select>
@@ -1032,7 +1168,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
       </div>
       <div class="flex justify-end gap-3 mt-6">
         <button onclick="closeModal('modal-add-player')" class="bg-slh hover:bg-sbr border border-white/5 text-out hover:text-os font-head font-bold rounded-lg px-5 py-2 text-sm uppercase transition-all">Cancel</button>
-        <button onclick="submitAddPlayer()" class="bg-pc text-pc-on font-head font-black rounded-lg px-6 py-2 text-sm uppercase hover:brightness-110 active:scale-[.98] transition-all sp">Add Player</button>
+        <button onclick="submitAddPlayer()" class="bg-pri text-pri-fg font-body font-semibold rounded-lg px-6 py-2 text-sm uppercase hover:brightness-110 active:scale-[.98] transition-all">Add Player</button>
       </div>
     </div>
   </div>
@@ -1040,7 +1176,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
 
 <div class="modal-overlay" id="modal-player">
   <div class="w-[680px] max-h-[80vh] bg-sl1 rounded-xl overflow-hidden sp flex flex-col">
-    <div class="h-0.5 bg-pc"></div>
+    <div class="h-0.5 w-full" style="background:var(--gradient-fire)"></div>
     <div class="px-7 py-5 border-b border-white/5">
       <h2 class="font-head font-black text-xl tracking-tight" id="modal-player-title">Player History</h2>
     </div>
@@ -1053,7 +1189,7 @@ input:not([class]),select:not([class]),textarea:not([class]){
 
 <div class="modal-overlay" id="modal-code">
   <div class="w-[680px] max-h-[80vh] bg-sl1 rounded-xl overflow-hidden sp flex flex-col">
-    <div class="h-0.5 bg-pc"></div>
+    <div class="h-0.5 w-full" style="background:var(--gradient-fire)"></div>
     <div class="px-7 py-5 border-b border-white/5">
       <h2 class="font-head font-black text-xl tracking-tight" id="modal-code-title">Code Detail</h2>
     </div>
@@ -1107,6 +1243,10 @@ async function apiFetch(path, opts={}) {
     headers: { 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json', ...(opts.headers||{}) }
   });
   if (r.status === 401) { logout(); throw new Error('Unauthorized'); }
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.detail || `HTTP ${r.status}`);
+  }
   return r.json();
 }
 
@@ -1180,7 +1320,7 @@ async function checkDaemon() {
     if (dot)  dot.className  = cls;
     if (dotM) dotM.className = cls;
     txt.textContent  = d.running ? 'Rewardwolf Running' : `Rewardwolf: ${d.status}`;
-    txt.style.color  = d.running ? '#84e588' : '#ffb4ab';
+    txt.style.color  = d.running ? 'hsl(142 72% 45%)' : 'hsl(var(--destructive))';
   } catch(e) {}
 }
 
@@ -1194,8 +1334,7 @@ async function loadCtrlPage() {
 
 async function loadCtrlHealth() {
   try {
-    const d = await apiFetch('/dashboard');
-    const h = d.health;
+    const h = await apiFetch('/health');
     const bars = [
       ['cpu',  h.cpu,         '%',  80, 60],
       ['ram',  h.ram,         '%',  85, 70],
@@ -1203,7 +1342,7 @@ async function loadCtrlHealth() {
     ];
     bars.forEach(([k, pct, unit, warn, med]) => {
       const raw  = k === 'temp' ? h.temp : h[k];
-      const col  = raw > warn ? 'bg-e' : raw > med ? 'bg-pc' : 'bg-t';
+      const col  = raw > warn ? 'bg-e' : raw > med ? 'bg-ember' : 'bg-t';
       const el   = document.getElementById(`ctrl-${k}-val`);
       const bar  = document.getElementById(`ctrl-${k}-bar`);
       if (el)  el.textContent       = raw.toFixed(1) + (k === 'temp' ? '°C' : '%');
@@ -1218,7 +1357,7 @@ async function loadCtrlUptime() {
     const dot    = document.getElementById('ctrl-daemon-dot');
     const status = document.getElementById('ctrl-daemon-status');
     if (dot)    dot.className     = d.running ? 'sdot running' : 'sdot stopped';
-    if (status) { status.textContent = d.running ? 'Running' : (d.status || 'Stopped'); status.style.color = d.running ? '#84e588' : '#ffb4ab'; }
+    if (status) { status.textContent = d.running ? 'Running' : (d.status || 'Stopped'); status.style.color = d.running ? 'hsl(142 72% 45%)' : 'hsl(var(--destructive))'; }
     if (_uptimeInterval) clearInterval(_uptimeInterval);
     if (d.running && d.started_at) {
       _uptimeStartedAt = new Date(d.started_at);
@@ -1265,7 +1404,7 @@ async function loadDistributionStatus() {
         btnPR.className = btnPR.className.replace(/bg-\S+/g, '').trim() + ' bg-t/20 text-t hover:bg-t/30';
       } else {
         btnPR.innerHTML = '<span class="material-symbols-outlined text-[13px]" style="font-variation-settings:\'FILL\' 1;">pause</span>Duraklat';
-        btnPR.className = btnPR.className.replace(/bg-\S+/g, '').trim() + ' bg-pc/20 text-pc hover:bg-pc/30';
+        btnPR.className = btnPR.className.replace(/bg-\S+/g, '').trim() + ' bg-pri/20 text-pri hover:bg-pri/30';
       }
     }
 
@@ -1278,7 +1417,7 @@ async function loadDistributionStatus() {
       const delivered = (c.success||0) + (c.already_used||0);
       const total     = c.player_count || 1;
       const pct       = Math.min(Math.round(delivered / total * 100), 100);
-      const barCol    = c.is_completed ? 'bg-out/20' : pct > 80 ? 'bg-t' : 'bg-pc';
+      const barCol    = c.is_completed ? 'bg-out/20' : pct > 80 ? 'bg-t' : 'bg-pri';
       const expired   = isCodeExpired(c);
       const badge     = expired
         ? '<span class="bdg bdg-gray text-[9px]">Expired</span>'
@@ -1289,7 +1428,7 @@ async function loadDistributionStatus() {
             : '<span class="bdg bdg-green text-[9px]">Active</span>';
       return `<div class="mb-3 last:mb-0">
         <div class="flex items-center justify-between mb-1.5">
-          <span class="font-mono text-sm text-p font-bold">${c.code}</span>
+          <span class="font-mono text-sm text-os font-bold">${c.code}</span>
           <div class="flex items-center gap-3">
             <span class="font-mono text-[10px] text-out/60">${delivered}/${total} delivered</span>
             ${c.failed > 0 ? `<span class="font-mono text-[10px] text-e">${c.failed} failed</span>` : ''}
@@ -1450,11 +1589,11 @@ async function loadDashboard() {
       const total = c.player_count || d.players.total || 97;
       const pct   = Math.round(done / total * 100);
       tbody.innerHTML += `<tr class="trow">
-        <td class="font-mono text-sm text-p">${c.code}</td>
+        <td class="font-mono text-sm text-os">${c.code}</td>
         <td>${codeBadge(c)}</td>
         <td>${fmtExpiry(c.expires_at)}</td>
         <td class="font-mono text-t">${c.success||0}</td>
-        <td class="font-mono" style="color:#f0a500">${c.already_used||0}</td>
+        <td class="font-mono" style="color:hsl(var(--ember))">${c.already_used||0}</td>
         <td class="font-mono text-e">${c.failed||0}</td>
         <td style="min-width:120px">
           <div class="cpbar"><div class="cpfill" style="width:${pct}%"></div></div>
@@ -1469,7 +1608,7 @@ function setHealthBar(key, val, unit, warn) {
   const el  = document.getElementById(`h-${key}`);
   const bar = document.getElementById(`h-${key}-bar`);
   const cls = val > warn ? 'pf-red' : val > warn * .75 ? 'pf-yellow' : 'pf-green';
-  const col = val > warn ? '#ffb4ab' : val > warn * .75 ? '#f0a500' : '#84e588';
+  const col = val > warn ? 'hsl(var(--destructive))' : val > warn * .75 ? 'hsl(var(--ember))' : 'hsl(142 72% 45%)';
   el.textContent = val + unit;
   el.style.color = col;
   bar.style.width = Math.min(val, 100) + '%';
@@ -1494,7 +1633,7 @@ function renderPlayers(list) {
     const removed = !!p.removed_at;
     const role = p.role || 'R1';
     tbody.innerHTML += `<tr class="trow" style="${removed ? 'opacity:.45' : ''}">
-      <td class="font-mono text-sm cursor-pointer" style="color:#ffba44" onclick="openPlayerHistory('${p.player_id}')">${p.player_id}</td>
+      <td class="font-mono text-sm cursor-pointer" style="color:hsl(var(--primary))" onclick="openPlayerHistory('${p.player_id}')">${p.player_id}</td>
       <td class="cursor-pointer" onclick="openPlayerHistory('${p.player_id}')">${p.is_vip ? '<span class="vips">★ </span>' : ''}${esc(p.username)||'—'}</td>
       <td class="text-center">${p.is_vip ? '<span class="bdg bdg-vip">VIP</span>' : '<span class="bdg bdg-gray">—</span>'}</td>
       <td class="text-center">${roleBadge(role)}</td>
@@ -1560,7 +1699,7 @@ async function openPlayerHistory(pid) {
   const rows = d.history.map(r => {
     const icon = {SUCCESS:'✓',ALREADY_USED:'⚠',FAILED:'✕',SERVER_BUSY:'↻',UNKNOWN:'?'}[r.status] || '—';
     return `<tr class="trow">
-      <td class="font-mono text-[11px] text-p-dim">${r.code}</td>
+      <td class="font-mono text-[11px] text-os">${r.code}</td>
       <td><span class="bdg ${sBadge(r.status)}">${icon} ${r.status||'—'}</span></td>
       <td class="font-mono text-[11px] text-out">${esc(r.message||'').slice(0,50)||'—'}</td>
       <td class="font-mono text-[11px] text-out">${fmtDate(r.created_at)}</td>
@@ -1646,22 +1785,20 @@ async function syncSheets() {
 }
 
 async function loadCodes() {
-  const playersData = await apiFetch('/players');
-  const playerCount = playersData.length || 97;
   const codes = await apiFetch('/codes');
   const tbody = document.getElementById('codes-body');
   tbody.innerHTML = '';
   codes.forEach(c => {
     const done  = (c.success||0) + (c.already_used||0);
-    const total = c.player_count || playerCount;
+    const total = c.player_count || 1;
     const pct   = Math.round(done / total * 100);
     tbody.innerHTML += `<tr class="trow">
-      <td class="font-mono text-sm text-p">${c.code}</td>
+      <td class="font-mono text-sm text-os">${c.code}</td>
       <td>${codeBadge(c)}</td>
       <td class="font-mono text-[11px] text-out">${fmtDate(c.created_at)}</td>
       <td>${fmtExpiry(c.expires_at)}</td>
       <td class="font-mono text-t">${c.success||0}</td>
-      <td class="font-mono" style="color:#f0a500">${c.already_used||0}</td>
+      <td class="font-mono" style="color:hsl(var(--ember))">${c.already_used||0}</td>
       <td class="font-mono text-e">${c.failed||0}</td>
       <td style="min-width:110px">
         <div class="cpbar"><div class="cpfill" style="width:${pct}%"></div></div>
@@ -1680,7 +1817,7 @@ async function openCodeDetail(code) {
   const rows = players.map(p => {
     const icon = {SUCCESS:'✓',ALREADY_USED:'⚠',FAILED:'✕',SERVER_BUSY:'↻',UNKNOWN:'?'}[p.status] || '—';
     return `<tr class="trow">
-      <td class="font-mono text-[11px] text-p-dim">${p.player_id}</td>
+      <td class="font-mono text-[11px] text-os">${p.player_id}</td>
       <td>${p.is_vip ? '<span class="vips">★ </span>' : ''}${esc(p.username)||'—'}</td>
       <td><span class="bdg ${sBadge(p.status)}">${icon} ${p.status||'Pending'}</span></td>
       <td class="font-mono text-[11px] text-out">${fmtDate(p.created_at)}</td>
@@ -1855,6 +1992,8 @@ const PLATFORM_ICONS = { telegram: '✈️', discord: '🎮' };
 const EVENT_LABELS = {
   ev_new_code:      { icon:'🎉', label:'New Code' },
   ev_dist_complete: { icon:'✅', label:'Distribution' },
+  ev_dist_state:    { icon:'⚙️', label:'Dist State' },
+  ev_dist_progress: { icon:'📤', label:'Progress' },
   ev_expiry_warning:{ icon:'⏰', label:'Expiry' },
   ev_daily_summary: { icon:'📅', label:'Daily' },
 };
@@ -1891,13 +2030,13 @@ async function loadChannels() {
           </div>
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
-          <button onclick="testChannel(${ch.id})" title="Test" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slh hover:bg-sc/20 hover:text-sc text-out transition-all">
+          <button onclick="testChannel(${ch.id})" title="Test" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slh hover:bg-s/20 hover:text-s text-out transition-all">
             <span class="material-symbols-outlined text-sm">send</span>
           </button>
           <button onclick="toggleChannel(${ch.id}, ${ch.enabled ? 0 : 1})" title="${ch.enabled ? 'Disable' : 'Enable'}" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slh hover:bg-slx text-out transition-all">
             <span class="material-symbols-outlined text-sm">${ch.enabled ? 'toggle_on' : 'toggle_off'}</span>
           </button>
-          <button onclick="editChannel(${ch.id})" title="Edit" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slh hover:bg-pc/20 hover:text-pc text-out transition-all">
+          <button onclick="editChannel(${ch.id})" title="Edit" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slh hover:bg-pri/20 hover:text-pri text-out transition-all">
             <span class="material-symbols-outlined text-sm">edit</span>
           </button>
           <button onclick="deleteChannel(${ch.id}, '${ch.name.replace(/'/g,"\\'")}' )" title="Delete" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slh hover:bg-ec/20 hover:text-e text-out transition-all">
@@ -2037,8 +2176,8 @@ async function loadApiKeys() {
         </div>
         ${k.description ? `<div class="font-body text-xs text-out/60 mb-2">${esc(k.description)}</div>` : ''}
         <div class="flex items-center gap-2">
-          <code class="font-mono text-[11px] text-p bg-sl0 px-2.5 py-1 rounded truncate max-w-xs">${esc(k.key)}</code>
-          <button onclick="copyText('${esc(k.key)}')" class="text-out/50 hover:text-p transition-colors" title="Kopyala">
+          <code class="font-mono text-[11px] text-os bg-sl0 px-2.5 py-1 rounded truncate max-w-xs">${esc(k.key)}</code>
+          <button onclick="copyText('${esc(k.key)}')" class="text-out/50 hover:text-pri transition-colors" title="Kopyala">
             <span class="material-symbols-outlined text-[15px]">content_copy</span>
           </button>
         </div>
@@ -2071,14 +2210,14 @@ function showNewKeyModal(name, key) {
   div.style.display = 'flex';
   div.innerHTML = `
     <div class="w-[480px] bg-sl1 rounded-xl overflow-hidden sp">
-      <div class="h-0.5 bg-pc"></div>
+      <div class="h-0.5 w-full" style="background:var(--gradient-fire)"></div>
       <div class="p-7">
         <h2 class="font-head font-black text-xl tracking-tight mb-1">API Anahtarı Oluşturuldu</h2>
         <p class="font-body text-sm text-out mb-5">Bu anahtar bir daha gösterilmeyecek. Hemen kopyalayın.</p>
         <div class="mb-2 font-mono text-xs text-out/60 uppercase tracking-wider">${esc(name)}</div>
         <div class="flex items-center gap-2 bg-sl0 border border-white/5 rounded-lg px-4 py-3">
-          <code id="newkey-val" class="font-mono text-sm text-p flex-1 break-all">${esc(key)}</code>
-          <button onclick="copyText('${esc(key)}'); toast('Kopyalandı')" class="text-out/50 hover:text-p transition-colors shrink-0">
+          <code id="newkey-val" class="font-mono text-sm text-os flex-1 break-all">${esc(key)}</code>
+          <button onclick="copyText('${esc(key)}'); toast('Kopyalandı')" class="text-out/50 hover:text-pri transition-colors shrink-0">
             <span class="material-symbols-outlined text-[18px]">content_copy</span>
           </button>
         </div>
@@ -2122,8 +2261,8 @@ function fmtDate(dt) { return dt ? dt.slice(0,10) : '—'; }
 function fmtExpiry(dt) {
   if (!dt) return '<span class="font-mono text-[11px] text-out">No expiry</span>';
   const h = Math.round((new Date(dt) - Date.now()) / 3600000);
-  if (h <= 0) return `<span style="color:#ffb4ab" class="font-mono text-[11px]">${dt.slice(0,10)} (expired)</span>`;
-  const col = h < 24 ? '#ffb4ab' : h < 72 ? '#f0a500' : '#9f8e79';
+  if (h <= 0) return `<span style="color:hsl(var(--destructive))" class="font-mono text-[11px]">${dt.slice(0,10)} (expired)</span>`;
+  const col = h < 24 ? 'hsl(var(--destructive))' : h < 72 ? 'hsl(var(--ember))' : 'hsl(0 0% 55%)';
   return `<span style="color:${col}" class="font-mono text-[11px]">${dt.slice(0,10)} (${h}h)</span>`;
 }
 function esc(t) {
